@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/dickus/dreadnotes/internal/utils"
 )
 
 func main() {
-	utils.ConfigChecks()
+	fmt.Println(utils.ConfigChecks())
 }
 

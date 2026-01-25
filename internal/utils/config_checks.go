@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-func ConfigChecks() {
+func ConfigChecks() (string, string) {
 	configDir, err := os.UserConfigDir()
 
 	if err != nil {
@@ -18,8 +18,12 @@ func ConfigChecks() {
 
 	if _, err := os.Stat(configPath); err == nil {
 		fmt.Println("Config is in place.")
+
+		return "", ""
 	} else if errors.Is(err, os.ErrNotExist) {
-		fmt.Println("Config is not found.")
+		return "$HOME/Documents/notes", "nvim"
 	}
+
+	return "", ""
 }
 
