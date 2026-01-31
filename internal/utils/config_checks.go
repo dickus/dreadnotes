@@ -1,29 +1,69 @@
 package utils
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
-	"errors"
 	"path/filepath"
+	"strings"
 )
 
-func ConfigChecks() (string, string) {
-	configDir, err := os.UserConfigDir()
+var configDir, err = os.UserConfigDir()
+var configPath = filepath.Join(configDir, "dreadnotes", "config.toml")
 
+func ConfigInPlace() bool {
 	if err != nil {
 		fmt.Println("Couldn't find config directory: ", err)
-	}
 
-	configPath := filepath.Join(configDir, "dreadnotes", "config.toml")
+		return false
+	}
 
 	if _, err := os.Stat(configPath); err == nil {
-		fmt.Println("Config is in place.")
-
-		return "", ""
+		return true
 	} else if errors.Is(err, os.ErrNotExist) {
-		return "$HOME/Documents/notes", "nvim"
+		fmt.Println("Config file not found.")
+
+		return false
 	}
 
-	return "", ""
+	return false
+}
+
+func ReadConfig() []string {
+	file, err := os.Open(configPath)
+
+	if err != nil {
+		fmt.Println("Config file not found.")
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	var configStrings []string
+
+	for scanner.Scan() {
+		configStrings = append(configStrings, scanner.Text())
+	}
+
+	return configStrings
+}
+
+func SplitConfig(data string) (string, string) {
+	parts := strings.Split(data, " = ")
+
+	return parts[0], parts[1]
+}
+
+func DataValidation(key string, value string) bool {
+	if key == "notes_path" || key == "editor" {
+		if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return false
 }
 
