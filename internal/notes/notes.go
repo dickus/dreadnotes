@@ -3,9 +3,12 @@ package notes
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dickus/dreadnotes/internal/models"
 )
 
 func NewNote(name string, path string) {
@@ -36,5 +39,19 @@ func NewNote(name string, path string) {
 		fmt.Println("Couldn't create note: ", err)
 	}
 	defer file.Close()
+
+	OpenNote(models.Cfg.Editor, filePath)
+}
+
+func OpenNote(editor string, file string) error {
+	cmd := exec.Command(editor, file)
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+
+	return err
 }
 
