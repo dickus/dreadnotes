@@ -9,8 +9,10 @@ import (
 	"strings"
 )
 
-var configDir, err = os.UserConfigDir()
-var configPath = filepath.Join(configDir, "dreadnotes", "config.toml")
+var (
+	configDir, err = os.UserConfigDir()
+	configPath = filepath.Join(configDir, "dreadnotes", "config.toml")
+)
 
 func ConfigInPlace() bool {
 	if err != nil {
