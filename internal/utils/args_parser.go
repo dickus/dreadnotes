@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dickus/dreadnotes/internal/help"
+	"github.com/dickus/dreadnotes/internal/notes"
 )
 
 func ArgsParser() {
@@ -29,6 +30,9 @@ func ArgsParser() {
 	configCmd.StringVar(&configEditor, "e", "nvim", "config editor flag")
 	configCmd.BoolVar(&configHelp, "help", false, "config flag")
 	configCmd.BoolVar(&configHelp, "h", false, "config help flag")
+
+	//NOTES
+	newNoteCmd := flag.NewFlagSet("new", flag.ExitOnError)
 
 	switch os.Args[1] {
 	case "config":
@@ -54,6 +58,14 @@ func ArgsParser() {
 		help.Long()
 
 		os.Exit(0)
+	case "new":
+		newNoteCmd.Parse(os.Args[2:])
+
+		if newNoteCmd.NArg() == 0 {
+			notes.NewNote("", configNotesPath)
+		} else {
+			notes.NewNote(newNoteCmd.Arg(0), configNotesPath)
+		}
 	default:
 		fmt.Println("Unknown argument: ", os.Args[1])
 
