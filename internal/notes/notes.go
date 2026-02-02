@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dickus/dreadnotes/internal/frontmatter"
 	"github.com/dickus/dreadnotes/internal/models"
 )
 
@@ -39,6 +40,8 @@ func NewNote(name string, path string) {
 		fmt.Println("Couldn't create note: ", err)
 	}
 	defer file.Close()
+
+	frontmatter.CreateFrontmatter(filePath)
 
 	OpenNote(models.Cfg.Editor, filePath)
 }
