@@ -21,7 +21,6 @@ func Long() {
 	fmt.Println("   dreadnotes [FLAGS] <COMMAND> [OPTIONS]")
 	fmt.Println()
 	fmt.Println(" COMMANDS:")
-	fmt.Fprintln(w, "   config\tSet preferences")
 	fmt.Fprintln(w, "   new\tCreate new note")
 
 	w.Flush()
@@ -29,23 +28,6 @@ func Long() {
 	fmt.Println()
 	fmt.Println(" FLAGS:")
 	fmt.Fprintln(w, "   -h, --help\tShow this help")
-
-	w.Flush()
-}
-
-func ConfigHelp() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Println(" CONFIG:")
-	fmt.Println("   dreadnotes config ― Set preferences")
-	fmt.Println()
-	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes config [OPTIONS]")
-	fmt.Println()
-	fmt.Println(" OPTIONS:")
-	fmt.Fprintln(w, "   -h, --help\tShow this help")
-	fmt.Fprintln(w, "   -p, --path '<PATH>'\tSet notes directory path (default: $HOME/Documents/dreadnotes)")
-	fmt.Fprintln(w, "   -e, --editor '<NAME>'\tSet notes editor (default: nvim)")
 
 	w.Flush()
 }
