@@ -39,7 +39,7 @@ func NewNote(name string, path string) {
 	if err != nil {
 		fmt.Println("Couldn't create note: ", err)
 	}
-	defer file.Close()
+	file.Close()
 
 	frontmatter.CreateFrontmatter(filePath)
 
