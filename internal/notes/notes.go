@@ -41,7 +41,7 @@ func NewNote(name string, path string) {
 	}
 	file.Close()
 
-	frontmatter.CreateFrontmatter(filePath)
+	frontmatter.CreateFrontmatter(filePath, name)
 
 	OpenNote(filePath)
 }
