@@ -43,11 +43,19 @@ func NewNote(name string, path string) {
 
 	frontmatter.CreateFrontmatter(filePath)
 
-	OpenNote(models.Cfg.Editor, filePath)
+	OpenNote(filePath)
 }
 
-func OpenNote(editor string, file string) error {
-	cmd := exec.Command(editor, file)
+func OpenNote(file string) error {
+	cmd := exec.Command(models.Cfg.Editor, file)
+
+	if models.Cfg.Editor == "nvim" {
+		lineNumber, err := nvimFindContent(file)
+
+		if err != nil { return err }
+
+		cmd = exec.Command(models.Cfg.Editor, fmt.Sprintf("+%d", lineNumber), file)
+	}
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -56,5 +64,21 @@ func OpenNote(editor string, file string) error {
 	err := cmd.Run()
 
 	return err
+}
+
+func nvimFindContent(file string) (int, error) {
+	content, err := os.ReadFile(file)
+
+	if err != nil { return 1, err }
+
+	lines := strings.Split(string(content), "\n")
+
+	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) == "---" { return i + 2, nil }
+		}
+	}
+
+	return 1, nil
 }
 
