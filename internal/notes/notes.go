@@ -31,7 +31,7 @@ func NewNote(name string, path string) {
 	if name == "" {
 		filePath = notesDir(path) + "/" + strconv.FormatInt(timestamp, 10) + ".md"
 	} else {
-		filePath = notesDir(path) + "/" + strconv.FormatInt(timestamp, 10) + "_" + name + ".md"
+		filePath = notesDir(path) + "/" + strconv.FormatInt(timestamp, 10) + "_" + strings.ReplaceAll(name, " ", "_") + ".md"
 	}
 
 	file, err := os.Create(filePath)
