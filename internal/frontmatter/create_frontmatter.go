@@ -24,8 +24,8 @@ func CreateFrontmatter(path string) {
 
 	err := os.WriteFile(path, []byte(content), 0644)
 
-	if err == nil {
-		fmt.Println(err)
+	if err != nil {
+		fmt.Println("Couldn't write frontmatter: ", err)
 	}
 }
 
