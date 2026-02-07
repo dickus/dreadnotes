@@ -35,6 +35,8 @@ func ArgsParser() {
 		} else {
 			notes.NewNote(newNoteCmd.Arg(0), models.Cfg.NotesPath)
 		}
+	case "open":
+		notes.Search(models.Cfg.NotesPath + "/1770377041_balls.md")
 	default:
 		fmt.Println("Unknown argument: ", os.Args[1])
 
