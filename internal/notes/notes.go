@@ -82,25 +82,3 @@ func nvimFindContent(file string) (int, error) {
 	return 1, nil
 }
 
-func Search(path string) {
-	fullPath, front, content := frontmatter.SplitFile(path)
-
-	doc := frontmatter.Parser(fullPath, front, content)
-
-	fmt.Println("title: " + doc.Meta.Title)
-	fmt.Println("created: " + doc.Meta.Created)
-	fmt.Println("updated: " + doc.Meta.Updated)
-	fmt.Print("tags: ")
-	for i := 0; i < len(doc.Meta.Tags); i++ {
-		if i == len(doc.Meta.Tags) - 1 {
-			fmt.Println(doc.Meta.Tags[i])
-		} else {
-			fmt.Print(doc.Meta.Tags[i] + ", ")
-		}
-	}
-	fmt.Println()
-	fmt.Println("content: ")
-	fmt.Print(string(doc.Content))
-	fmt.Println("path: " + doc.Path)
-}
-

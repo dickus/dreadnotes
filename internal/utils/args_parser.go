@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dickus/dreadnotes/internal/help"
-	"github.com/dickus/dreadnotes/internal/notes"
 	"github.com/dickus/dreadnotes/internal/models"
+	"github.com/dickus/dreadnotes/internal/notes"
+	"github.com/dickus/dreadnotes/internal/search"
+	"github.com/dickus/dreadnotes/internal/ui"
 )
 
 func ArgsParser() {
@@ -23,11 +26,14 @@ func ArgsParser() {
 	switch os.Args[1] {
 	case "-h":
 		fallthrough
+
 	case "--help":
 		help.Long()
 
 		os.Exit(0)
+
 	case "new":
+
 		newNoteCmd.Parse(os.Args[2:])
 
 		if newNoteCmd.NArg() == 0 {
@@ -35,8 +41,38 @@ func ArgsParser() {
 		} else {
 			notes.NewNote(newNoteCmd.Arg(0), models.Cfg.NotesPath)
 		}
+
 	case "open":
-		notes.Search(models.Cfg.NotesPath + "/1770377041_balls.md")
+		idx, err := search.BuildIndex(models.Cfg.NotesPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+		defer idx.Close()
+
+		if err := search.ReindexAll(idx, models.Cfg.NotesPath); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+
+		p := tea.NewProgram(ui.NewSearchModel(idx))
+		result, err := p.Run()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+
+		if sm, ok := result.(ui.SearchModel); ok && sm.Chosen() != "" {
+			if err := notes.OpenNote(sm.Chosen()); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+
+				os.Exit(1)
+			}
+		}
+
 	default:
 		fmt.Println("Unknown argument: ", os.Args[1])
 
