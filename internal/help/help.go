@@ -40,3 +40,19 @@ func NewNoteHelp() {
 	fmt.Println("   dreadnotes new \"<name>\"")
 }
 
+func OpenNoteHelp() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	fmt.Println(" OPEN:")
+	fmt.Println("   dreadnotes open ― Search notes")
+	fmt.Println()
+	fmt.Println(" USAGE:")
+	fmt.Println("   dreadnotes open [FLAGS]")
+	fmt.Println()
+	fmt.Println(" FLAGS:")
+	fmt.Fprintln(w, "   -h, --help\tShow this help")
+	fmt.Fprintln(w, "   -t, --tag\tSearch by tag")
+
+	w.Flush()
+}
+

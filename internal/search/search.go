@@ -17,12 +17,21 @@ func Search(idx bleve.Index, queryStr string, limit int) (*bleve.SearchResult, e
 		return &bleve.SearchResult{}, nil
 	}
 
-	prefix := bleve.NewPrefixQuery(queryStr)
+	titlePrefix := bleve.NewPrefixQuery(queryStr)
+	titlePrefix.SetField("title")
 
-	fuzzy := bleve.NewFuzzyQuery(queryStr)
-	fuzzy.Fuzziness = 1
+	titleFuzzy := bleve.NewFuzzyQuery(queryStr)
+	titleFuzzy.Fuzziness = 1
+	titleFuzzy.SetField("title")
 
-	combined := bleve.NewDisjunctionQuery(prefix, fuzzy)
+	contentPrefix := bleve.NewPrefixQuery(queryStr)
+	contentPrefix.SetField("content")
+
+	contentFuzzy := bleve.NewFuzzyQuery(queryStr)
+	contentFuzzy.Fuzziness = 1
+	contentFuzzy.SetField("content")
+
+	combined := bleve.NewDisjunctionQuery(titlePrefix, titleFuzzy, contentPrefix, contentFuzzy)
 
 	req := bleve.NewSearchRequest(combined)
 	req.Size = limit
@@ -32,11 +41,16 @@ func Search(idx bleve.Index, queryStr string, limit int) (*bleve.SearchResult, e
 }
 
 func SearchByTag(idx bleve.Index, tag string, limit int) (*bleve.SearchResult, error) {
-	q := query.NewTermQuery(tag)
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return &bleve.SearchResult{}, nil
+	}
+
+	q := query.NewTermQuery(strings.ToLower(tag))
 	q.SetField("tags")
 
 	req := bleve.NewSearchRequestOptions(q, limit, 0, false)
-	req.Fields = []string{"title", "path"}
+	req.Fields = []string{"title", "content", "path"}
 
 	return idx.Search(req)
 }

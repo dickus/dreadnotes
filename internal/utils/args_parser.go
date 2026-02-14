@@ -20,29 +20,38 @@ func ArgsParser() {
 		os.Exit(0)
 	}
 
-	//NOTES
-	newNoteCmd := flag.NewFlagSet("new", flag.ExitOnError)
-
 	switch os.Args[1] {
-	case "-h":
-		fallthrough
-
-	case "--help":
+	case "-h", "--help":
 		help.Long()
 
 		os.Exit(0)
 
 	case "new":
+		newCmd := flag.NewFlagSet("new", flag.ExitOnError)
+		newCmd.Usage = func() {
+			help.NewNoteHelp()
 
-		newNoteCmd.Parse(os.Args[2:])
-
-		if newNoteCmd.NArg() == 0 {
-			notes.NewNote("", models.Cfg.NotesPath)
-		} else {
-			notes.NewNote(newNoteCmd.Arg(0), models.Cfg.NotesPath)
+			os.Exit(0)
 		}
 
+		newCmd.Parse(os.Args[2:])
+
+		name := newCmd.Arg(0)
+		notes.NewNote(name, models.Cfg.NotesPath)
+
 	case "open":
+		openCmd := flag.NewFlagSet("open", flag.ExitOnError)
+		openCmd.Usage = func() {
+			help.OpenNoteHelp()
+
+			os.Exit(0)
+		}
+
+		tagMode := openCmd.Bool("t", false, "search by tag")
+		openCmd.BoolVar(tagMode, "tag", false, "search by tag")
+
+		openCmd.Parse(os.Args[2:])
+
 		idx, err := search.BuildIndex(models.Cfg.NotesPath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -57,7 +66,7 @@ func ArgsParser() {
 			os.Exit(1)
 		}
 
-		p := tea.NewProgram(ui.NewSearchModel(idx))
+		p := tea.NewProgram(ui.NewSearchModel(idx, *tagMode))
 		result, err := p.Run()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

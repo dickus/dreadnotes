@@ -23,25 +23,37 @@ type resultItem struct {
 	snippet string
 }
 
-func performSearch(idx bleve.Index, query string) tea.Cmd {
+func performSearch(idx bleve.Index, query string, tagMode bool) tea.Cmd {
 	return func() tea.Msg {
 		if strings.TrimSpace(query) == "" {
 			return searchResultMsg{}
 		}
 
-		res, err := search.Search(idx, query, 20)
+		var res *bleve.SearchResult
+		var err error
+
+		if tagMode {
+			res, err = search.SearchByTag(idx, query, 20)
+		} else {
+			res, err = search.Search(idx, query, 20)
+		}
 		if err != nil {
 			return searchResultMsg{err: err}
 		}
 
 		queryLower := strings.ToLower(strings.TrimSpace(query))
-
 		items := make([]resultItem, 0, len(res.Hits))
+
 		for _, hit := range res.Hits {
 			title, _ := hit.Fields["title"].(string)
 			content, _ := hit.Fields["content"].(string)
 
-			snippet := findMatchingLine(content, queryLower)
+			var snippet string
+			if tagMode {
+				snippet = contentPreview(content, 2)
+			} else {
+				snippet = findMatchingLine(content, queryLower)
+			}
 
 			items = append(items, resultItem{
 				title:   title,
@@ -53,6 +65,34 @@ func performSearch(idx bleve.Index, query string) tea.Cmd {
 
 		return searchResultMsg{items: items}
 	}
+}
+
+func contentPreview(content string, n int) string {
+	var lines []string
+	for line := range strings.SplitSeq(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		runes := []rune(trimmed)
+		if len(runes) > 120 {
+			trimmed = string(runes[:120]) + "…"
+		}
+
+		width := getTermWidth() - 4
+		lines = append(lines, wrapLine(trimmed, width))
+
+		if len(lines) >= n {
+			break
+		}
+	}
+
+	if len(lines) == 0 {
+		return ""
+	}
+
+	return strings.Join(lines, "\n\n    ")
 }
 
 func getTermWidth() int {
@@ -88,7 +128,6 @@ func findMatchingLine(content string, query string) string {
 			if len(runes) > 120 {
 				trimmed = string(runes[:120]) + "…"
 			}
-
 			width := getTermWidth() - 4
 
 			return wrapLine(trimmed, width)
@@ -100,6 +139,7 @@ func findMatchingLine(content string, query string) string {
 
 type SearchModel struct {
 	idx     bleve.Index
+	tagMode bool
 	query   string
 	results []resultItem
 	cursor  int
@@ -107,8 +147,11 @@ type SearchModel struct {
 	chosen  string
 }
 
-func NewSearchModel(idx bleve.Index) SearchModel {
-	return SearchModel{idx: idx}
+func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
+	return SearchModel{
+		idx: 	 idx,
+		tagMode: tagMode,
+	}
 }
 
 func (m SearchModel) Init() tea.Cmd { return nil }
@@ -145,7 +188,8 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.query) > 0 {
 				runes := []rune(m.query)
 				m.query = string(runes[:len(runes)-1])
-				return m, performSearch(m.idx, m.query)
+
+				return m, performSearch(m.idx, m.query, m.tagMode)
 			}
 
 		case tea.KeyEnter:
@@ -158,12 +202,14 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeySpace:
 			m.query += " "
 			m.cursor = 0
-			return m, performSearch(m.idx, m.query)
+
+			return m, performSearch(m.idx, m.query, m.tagMode)
 
 		case tea.KeyRunes:
 			m.query += string(msg.Runes)
 			m.cursor = 0
-			return m, performSearch(m.idx, m.query)
+
+			return m, performSearch(m.idx, m.query, m.tagMode)
 		}
 
 	case searchResultMsg:
@@ -180,15 +226,22 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m SearchModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("  Search: %s▁ \n", m.query))
+	label := "Search"
+	if m.tagMode {
+		label = "Tag"
+	}
+
+	b.WriteString(fmt.Sprintf("  %s: %s▁ \n", label, m.query))
 
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("  Error: %v\n", m.err))
+
 		return b.String()
 	}
 
 	if len(m.results) == 0 && m.query != "" {
 		b.WriteString("  No results.\n")
+
 		return b.String()
 	}
 
@@ -197,6 +250,7 @@ func (m SearchModel) View() string {
 		if i == m.cursor {
 			cursor = "❯ "
 		}
+
 		b.WriteString(fmt.Sprintf("%s%s\n", cursor, r.title))
 		if r.snippet != "" {
 			b.WriteString(fmt.Sprintf("    %s\n", r.snippet))
