@@ -22,6 +22,8 @@ func Long() {
 	fmt.Println()
 	fmt.Println(" COMMANDS:")
 	fmt.Fprintln(w, "   new\tCreate new note")
+	fmt.Fprintln(w, "   open\tSearch notes")
+	fmt.Fprintln(w, "   random\tOpen random note")
 
 	w.Flush()
 
@@ -33,11 +35,18 @@ func Long() {
 }
 
 func NewNoteHelp() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
 	fmt.Println(" NEW:")
 	fmt.Println("   dreadnotes new ― Create new note")
 	fmt.Println()
 	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes new \"<name>\"")
+	fmt.Println("   dreadnotes new [NAME] [FLAGS]")
+	fmt.Println()
+	fmt.Println(" FLAGS:")
+	fmt.Fprintln(w, "    -h, --help\tShow this help")
+
+	w.Flush()
 }
 
 func OpenNoteHelp() {
@@ -52,6 +61,21 @@ func OpenNoteHelp() {
 	fmt.Println(" FLAGS:")
 	fmt.Fprintln(w, "   -h, --help\tShow this help")
 	fmt.Fprintln(w, "   -t, --tag\tSearch by tag")
+
+	w.Flush()
+}
+
+func RandomNoteHelp() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	fmt.Println(" RANDOM:")
+	fmt.Println("   dreadnotes random ― Open random note")
+	fmt.Println()
+	fmt.Println(" USAGE:")
+	fmt.Println("   dreadnotes random [FLAGS]")
+	fmt.Println()
+	fmt.Println(" FLAGS:")
+	fmt.Fprintln(w, "   -h, --help\tShow this help")
 
 	w.Flush()
 }

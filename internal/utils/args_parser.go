@@ -82,10 +82,33 @@ func ArgsParser() {
 			}
 		}
 
-	default:
-		fmt.Println("Unknown argument: ", os.Args[1])
+	case "random":
+		randomCmd := flag.NewFlagSet("random", flag.ExitOnError)
+		randomCmd.Usage = func() {
+			help.RandomNoteHelp()
 
-		os.Exit(1)
+			os.Exit(0)
+		}
+
+		randomCmd.Parse(os.Args[2:])
+
+		path, err := notes.RandomNote(models.Cfg.NotesPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+
+		if err := notes.OpenNote(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+
+	default:
+		help.Short()
+
+		os.Exit(0)
 	}
 }
 

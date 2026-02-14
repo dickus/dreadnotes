@@ -1,9 +1,12 @@
 package notes
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -13,25 +16,18 @@ import (
 )
 
 func NewNote(name string, path string) {
-	homeDir, _ := os.UserHomeDir()
-	notesDir := func(path string) string {
-		if strings.HasPrefix(path, "$HOME") {
-			return strings.Replace(path, "$HOME", homeDir, 1)
-		}
-
-		return path
-	}
+	notesDir := pathParse(path)
 
 	timestamp := time.Now().Unix()
 
-	os.MkdirAll(notesDir(path), 0755)
+	os.MkdirAll(notesDir, 0755)
 
 	var filePath string
 
 	if name == "" {
-		filePath = notesDir(path) + "/" + strconv.FormatInt(timestamp, 10) + ".md"
+		filePath = notesDir + "/" + strconv.FormatInt(timestamp, 10) + ".md"
 	} else {
-		filePath = notesDir(path) + "/" + strconv.FormatInt(timestamp, 10) + "_" + strings.ReplaceAll(name, " ", "_") + ".md"
+		filePath = notesDir + "/" + strconv.FormatInt(timestamp, 10) + "_" + strings.ReplaceAll(name, " ", "_") + ".md"
 	}
 
 	file, err := os.Create(filePath)
@@ -80,5 +76,43 @@ func nvimFindContent(file string) (int, error) {
 	}
 
 	return 1, nil
+}
+
+func RandomNote(path string) (string, error) {
+	notesDir := pathParse(path)
+
+	entries, err := os.ReadDir(notesDir)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read notes directory: %w", err)
+	}
+
+	var notes []string
+	for _, e := range entries {
+		if e.IsDir() { continue }
+
+		if strings.HasSuffix(e.Name(), ".md") {
+			notes = append(notes, filepath.Join(notesDir, e.Name()))
+		}
+	}
+
+	if len(notes) == 0 {
+		return "", fmt.Errorf("No notes found in %s", notesDir)
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(notes))))
+	if err != nil {
+		return "", fmt.Errorf("Failed to generate random index: %w", err)
+	}
+
+	return notes[n.Int64()], nil
+}
+
+func pathParse(path string) string {
+	homeDir, _ := os.UserHomeDir()
+	if strings.HasPrefix(path, "$HOME") {
+		return strings.Replace(path, "$HOME", homeDir, 1)
+	}
+
+	return path
 }
 
