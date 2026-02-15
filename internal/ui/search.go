@@ -7,8 +7,30 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dickus/dreadnotes/internal/search"
 	"golang.org/x/term"
+)
+
+var (
+	activeTitle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("2")).
+			Bold(true)
+
+	inactiveTitle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("245"))
+
+	snippetStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).
+			PaddingLeft(4)
+
+	separator = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("238")).
+			Render("  ──────────────────────────────")
+
+	promptStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("69")).
+			Bold(true)
 )
 
 type searchResultMsg struct {
@@ -53,6 +75,10 @@ func performSearch(idx bleve.Index, query string, tagMode bool) tea.Cmd {
 				snippet = contentPreview(content, 2)
 			} else {
 				snippet = findMatchingLine(content, queryLower)
+
+				if snippet == "" {
+					snippet = contentPreview(content, 2)
+				}
 			}
 
 			items = append(items, resultItem{
@@ -92,7 +118,7 @@ func contentPreview(content string, n int) string {
 		return ""
 	}
 
-	return strings.Join(lines, "\n\n    ")
+	return strings.Join(lines, "\n\n")
 }
 
 func getTermWidth() int {
@@ -110,7 +136,6 @@ func wrapLine(s string, width int) string {
 	for i, r := range runes {
 		if i > 0 && i%width == 0 {
 			b.WriteRune('\n')
-			b.WriteString("    ")
 		}
 		b.WriteRune(r)
 	}
@@ -231,30 +256,32 @@ func (m SearchModel) View() string {
 		label = "Tag"
 	}
 
-	b.WriteString(fmt.Sprintf("  %s: %s▁ \n", label, m.query))
+	b.WriteString(promptStyle.Render(fmt.Sprintf("  %s: ", label)))
+	b.WriteString(fmt.Sprintf("%s▁\n\n", m.query))
 
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("  Error: %v\n", m.err))
-
 		return b.String()
 	}
 
 	if len(m.results) == 0 && m.query != "" {
 		b.WriteString("  No results.\n")
-
 		return b.String()
 	}
 
 	for i, r := range m.results {
-		cursor := "  "
-		if i == m.cursor {
-			cursor = "❯ "
+		if i > 0 {
+			b.WriteString(separator + "\n")
 		}
 
-		b.WriteString(fmt.Sprintf("%s%s\n", cursor, r.title))
+		if i == m.cursor {
+			b.WriteString("❯ " + activeTitle.Render(r.title) + "\n")
 
-		if r.snippet != "" && i == m.cursor {
-			b.WriteString(fmt.Sprintf("    %s\n", r.snippet))
+			if r.snippet != "" {
+				b.WriteString(snippetStyle.Render(r.snippet) + "\n")
+			}
+		} else {
+			b.WriteString("  " + inactiveTitle.Render(r.title) + "\n")
 		}
 	}
 
