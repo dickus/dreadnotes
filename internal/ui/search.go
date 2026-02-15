@@ -252,7 +252,8 @@ func (m SearchModel) View() string {
 		}
 
 		b.WriteString(fmt.Sprintf("%s%s\n", cursor, r.title))
-		if r.snippet != "" {
+
+		if r.snippet != "" && i == m.cursor {
 			b.WriteString(fmt.Sprintf("    %s\n", r.snippet))
 		}
 	}
