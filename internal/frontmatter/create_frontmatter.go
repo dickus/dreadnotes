@@ -17,7 +17,7 @@ func CreateFrontmatter(path string, name string) {
 	fmt.Fprintf(&sb, "title: %v\n", name)
 	fmt.Fprintf(&sb, "created: %v\n", creationTime)
 	fmt.Fprintf(&sb, "updated: %v\n", creationTime)
-	fmt.Fprintf(&sb, "tags: \n")
+	fmt.Fprintf(&sb, "tags: []\n")
 	fmt.Fprintf(&sb, "---\n")
 	fmt.Fprintf(&sb, "\n")
 
