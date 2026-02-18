@@ -12,15 +12,18 @@ import (
 
 func LoadConfig() {
 	home, _ := os.UserHomeDir()
+	conf, _ := os.UserConfigDir()
 
 	models.Cfg.NotesPath = filepath.Join(home, "Documents/dreadnotes")
 	models.Cfg.Editor = "nvim"
+	models.Cfg.Templates = filepath.Join(conf, "dreadnotes", "templates")
 
 	if utils.ConfigInPlace() {
 		configStrings := utils.ReadConfig()
 
 		pathKey := 0
 		editorKey := 0
+		templateKey := 0
 
 		for _, data := range configStrings {
 			if !strings.Contains(data, "=") {
@@ -37,7 +40,8 @@ func LoadConfig() {
 				continue
 			}
 
-			if key == "notes_path" {
+			switch key {
+			case "notes_path":
 				if pathKey == 0 {
 					value = strings.ReplaceAll(value, "\"", "")
 
@@ -47,7 +51,8 @@ func LoadConfig() {
 				} else {
 					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Path %s will be used now.\n", key, models.Cfg.NotesPath)
 				}
-			} else if key == "editor" {
+
+			case "editor":
 				if editorKey == 0 {
 					value = strings.ReplaceAll(value, "\"", "")
 
@@ -57,7 +62,19 @@ func LoadConfig() {
 				} else {
 					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Editor %s will be used now.\n", key, models.Cfg.Editor)
 				}
-			} else {
+
+			case "templates_path":
+				if templateKey == 0 {
+					value = strings.ReplaceAll(value, "\"", "")
+
+					models.Cfg.Templates = value
+
+					templateKey++
+				} else {
+					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Templates path %s will be used now.\n", key, models.Cfg.Templates)
+				}
+
+			default:
 				fmt.Printf("Key '%s' is unknown. Check config.toml to resolve this issue.\n", key)
 			}
 		}

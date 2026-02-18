@@ -24,8 +24,6 @@ func ConfigInPlace() bool {
 	if _, err := os.Stat(configPath); err == nil {
 		return true
 	} else if errors.Is(err, os.ErrNotExist) {
-		fmt.Println("Config file not found.")
-
 		return false
 	}
 
@@ -33,11 +31,8 @@ func ConfigInPlace() bool {
 }
 
 func ReadConfig() []string {
-	file, err := os.Open(configPath)
+	file, _ := os.Open(configPath)
 
-	if err != nil {
-		fmt.Println("Config file not found.")
-	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -58,7 +53,7 @@ func SplitConfig(data string) (string, string) {
 }
 
 func DataValidation(key string, value string) bool {
-	if key == "notes_path" || key == "editor" {
+	if key == "notes_path" || key == "editor" || key == "templates_path" {
 		if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 			return true
 		} else {
