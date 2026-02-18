@@ -11,6 +11,9 @@ func Short() {
 	fmt.Println(" USAGE:")
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
 	fmt.Println()
+	fmt.Println(" COMMANDS:")
+	fmt.Println("   new, open, random")
+	fmt.Println()
 	fmt.Println(" Run 'dreadnotes --help' for detailed usage.")
 }
 
@@ -32,6 +35,9 @@ func Long() {
 	fmt.Fprintln(w, "   -h, --help\tShow this help")
 
 	w.Flush()
+
+	fmt.Println()
+	fmt.Println(" Run 'dreadnotes <COMMAND> --help' for more information on a command.")
 }
 
 func NewNoteHelp() {
@@ -41,12 +47,20 @@ func NewNoteHelp() {
 	fmt.Println("   dreadnotes new ― Create new note")
 	fmt.Println()
 	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes new \"<NAME>\" [FLAGS]")
+	fmt.Println("   dreadnotes new [FLAGS] \"<NAME>\"")
 	fmt.Println()
 	fmt.Println(" FLAGS:")
-	fmt.Fprintln(w, "    -h, --help\tShow this help")
+	fmt.Fprintln(w, "   -h, --help\tShow this help")
+	fmt.Fprintln(w, "   -T <name>\tUse a specific template")
+	fmt.Fprintln(w, "   -i\tPick a template interactively")
 
 	w.Flush()
+
+	fmt.Println()
+	fmt.Println(" EXAMPLES:")
+	fmt.Println("   dreadnotes new \"My Note\"")
+	fmt.Println("   dreadnotes new -T daily \"My Note\"")
+	fmt.Println("   dreadnotes new -i \"My Note\"")
 }
 
 func OpenNoteHelp() {
@@ -63,6 +77,11 @@ func OpenNoteHelp() {
 	fmt.Fprintln(w, "   -t, --tag\tSearch by tag")
 
 	w.Flush()
+
+	fmt.Println()
+	fmt.Println(" EXAMPLES:")
+	fmt.Println("   dreadnotes open")
+	fmt.Println("   dreadnotes open -t work")
 }
 
 func RandomNoteHelp() {

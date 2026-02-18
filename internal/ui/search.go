@@ -261,25 +261,25 @@ func (m SearchModel) View() string {
 
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("  Error: %v\n", m.err))
+
 		return b.String()
 	}
 
 	if len(m.results) == 0 && m.query != "" {
 		b.WriteString("  No results.\n")
+
 		return b.String()
 	}
 
 	for i, r := range m.results {
-		if i > 0 {
-			b.WriteString(separator + "\n")
-		}
-
 		if i == m.cursor {
 			b.WriteString("❯ " + activeTitle.Render(r.title) + "\n")
 
 			if r.snippet != "" {
 				b.WriteString(snippetStyle.Render(r.snippet) + "\n")
 			}
+
+			b.WriteString(separator + "\n")
 		} else {
 			b.WriteString("  " + inactiveTitle.Render(r.title) + "\n")
 		}

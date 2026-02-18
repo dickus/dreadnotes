@@ -69,6 +69,8 @@ func LoadConfig() {
 
 					models.Cfg.Templates = value
 
+					models.Cfg.Templates = strings.Replace(models.Cfg.Templates, "$HOME/.config/", "", 1)
+
 					templateKey++
 				} else {
 					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Templates path %s will be used now.\n", key, models.Cfg.Templates)

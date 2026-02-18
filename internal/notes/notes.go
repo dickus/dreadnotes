@@ -13,9 +13,10 @@ import (
 
 	"github.com/dickus/dreadnotes/internal/frontmatter"
 	"github.com/dickus/dreadnotes/internal/models"
+	"github.com/dickus/dreadnotes/internal/templates"
 )
 
-func NewNote(name string, path string) {
+func NewNote(name string, path string, tmplPath string) {
 	notesDir := pathParse(path)
 
 	timestamp := time.Now().Unix()
@@ -37,7 +38,18 @@ func NewNote(name string, path string) {
 	}
 	file.Close()
 
-	frontmatter.CreateFrontmatter(filePath, name)
+	if tmplPath != "" {
+		content, err := templates.ApplyTemplate(tmplPath, name)
+		if err != nil {
+			fmt.Println("Couldn't read template: ", err)
+
+			return
+		}
+
+		os.WriteFile(filePath, content, 0644)
+	} else {
+		frontmatter.CreateFrontmatter(filePath, name)
+	}
 
 	OpenNote(filePath)
 }
