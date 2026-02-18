@@ -14,7 +14,8 @@ func LoadConfig() {
 	home, _ := os.UserHomeDir()
 	conf, _ := os.UserConfigDir()
 
-	models.Cfg.NotesPath = filepath.Join(home, "Documents/dreadnotes")
+	models.Cfg.RepoPath = filepath.Join(home, "Documents/dreadnotes")
+	models.Cfg.NotesPath = filepath.Join(home, "Documtens/dreadnotes/notes")
 	models.Cfg.Editor = "nvim"
 	models.Cfg.Templates = filepath.Join(conf, "dreadnotes", "templates")
 
@@ -45,7 +46,7 @@ func LoadConfig() {
 				if pathKey == 0 {
 					value = strings.ReplaceAll(value, "\"", "")
 
-					models.Cfg.NotesPath = value
+					models.Cfg.NotesPath = value + "/notes"
 
 					pathKey++
 				} else {

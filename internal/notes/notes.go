@@ -16,8 +16,10 @@ import (
 	"github.com/dickus/dreadnotes/internal/templates"
 )
 
-func NewNote(name string, path string, tmplPath string) {
-	notesDir := pathParse(path)
+func NewNote(name string, tmplPath string) {
+	notesDir := PathParse(models.Cfg.NotesPath)
+
+	fmt.Println(notesDir)
 
 	timestamp := time.Now().Unix()
 
@@ -91,7 +93,7 @@ func nvimFindContent(file string) (int, error) {
 }
 
 func RandomNote(path string) (string, error) {
-	notesDir := pathParse(path)
+	notesDir := PathParse(path)
 
 	entries, err := os.ReadDir(notesDir)
 	if err != nil {
@@ -119,7 +121,7 @@ func RandomNote(path string) (string, error) {
 	return notes[n.Int64()], nil
 }
 
-func pathParse(path string) string {
+func PathParse(path string) string {
 	homeDir, _ := os.UserHomeDir()
 	if strings.HasPrefix(path, "$HOME") {
 		return strings.Replace(path, "$HOME", homeDir, 1)

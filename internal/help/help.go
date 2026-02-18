@@ -12,7 +12,7 @@ func Short() {
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
 	fmt.Println()
 	fmt.Println(" COMMANDS:")
-	fmt.Println("   new, open, random")
+	fmt.Println("   new, open, random, sync")
 	fmt.Println()
 	fmt.Println(" Run 'dreadnotes --help' for detailed usage.")
 }
@@ -27,6 +27,7 @@ func Long() {
 	fmt.Fprintln(w, "   new\tCreate new note")
 	fmt.Fprintln(w, "   open\tSearch notes")
 	fmt.Fprintln(w, "   random\tOpen random note")
+	fmt.Fprintln(w, "   sync\tUpdate git repository")
 
 	w.Flush()
 
@@ -97,5 +98,28 @@ func RandomNoteHelp() {
 	fmt.Fprintln(w, "   -h, --help\tShow this help")
 
 	w.Flush()
+
+	fmt.Println()
+	fmt.Println(" EXAMPLES:")
+	fmt.Println("   dreadnotes random")
+}
+
+func SyncHelp() {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	fmt.Println(" SYNC:")
+	fmt.Println("   dreadnotes sync ― Update local git repo. Also updates remote repo if it exists")
+	fmt.Println()
+	fmt.Println(" USAGE:")
+	fmt.Println("   dreadnotes sync [FLAGS]")
+	fmt.Println()
+	fmt.Println(" FLAGS:")
+	fmt.Fprintln(w, "   -h, --help\tShow this help")
+
+	w.Flush()
+
+	fmt.Println()
+	fmt.Println(" EXAMPLES:")
+	fmt.Println("   dreadnotes sync")
 }
 

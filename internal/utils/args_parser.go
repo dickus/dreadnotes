@@ -11,6 +11,7 @@ import (
 	"github.com/dickus/dreadnotes/internal/models"
 	"github.com/dickus/dreadnotes/internal/notes"
 	"github.com/dickus/dreadnotes/internal/search"
+	"github.com/dickus/dreadnotes/internal/sync"
 	"github.com/dickus/dreadnotes/internal/ui"
 )
 
@@ -64,7 +65,7 @@ func ArgsParser() {
 			}
 		}
 
-		notes.NewNote(name, models.Cfg.NotesPath, tmplPath)
+		notes.NewNote(name, tmplPath)
 
 	case "open":
 		openCmd := flag.NewFlagSet("open", flag.ExitOnError)
@@ -127,6 +128,23 @@ func ArgsParser() {
 		}
 
 		if err := notes.OpenNote(path); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+
+			os.Exit(1)
+		}
+
+	case "sync":
+		syncCmd := flag.NewFlagSet("sync", flag.ExitOnError)
+		syncCmd.Usage = func() {
+			help.SyncHelp()
+
+			os.Exit(0)
+		}
+
+		syncCmd.Parse(os.Args[2:])
+
+		err := sync.Sync(models.Cfg.NotesPath)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 
 			os.Exit(1)
