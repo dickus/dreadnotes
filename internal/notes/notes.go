@@ -19,8 +19,6 @@ import (
 func NewNote(name string, tmplPath string) {
 	notesDir := PathParse(models.Cfg.NotesPath)
 
-	fmt.Println(notesDir)
-
 	timestamp := time.Now().Unix()
 
 	os.MkdirAll(notesDir, 0755)
