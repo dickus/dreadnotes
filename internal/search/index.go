@@ -52,4 +52,3 @@ func BuildIndex(notesPath string) (bleve.Index, error) {
 
 	return idx, nil
 }
-

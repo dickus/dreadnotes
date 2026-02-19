@@ -60,7 +60,9 @@ func OpenNote(file string) error {
 	if models.Cfg.Editor == "nvim" {
 		lineNumber, err := nvimFindContent(file)
 
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		cmd = exec.Command(models.Cfg.Editor, fmt.Sprintf("+%d", lineNumber), file)
 	}
@@ -77,13 +79,17 @@ func OpenNote(file string) error {
 func nvimFindContent(file string) (int, error) {
 	content, err := os.ReadFile(file)
 
-	if err != nil { return 1, err }
+	if err != nil {
+		return 1, err
+	}
 
 	lines := strings.Split(string(content), "\n")
 
 	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
 		for i := 1; i < len(lines); i++ {
-			if strings.TrimSpace(lines[i]) == "---" { return i + 2, nil }
+			if strings.TrimSpace(lines[i]) == "---" {
+				return i + 2, nil
+			}
 		}
 	}
 
@@ -100,7 +106,9 @@ func RandomNote(path string) (string, error) {
 
 	var notes []string
 	for _, e := range entries {
-		if e.IsDir() { continue }
+		if e.IsDir() {
+			continue
+		}
 
 		if strings.HasSuffix(e.Name(), ".md") {
 			notes = append(notes, filepath.Join(notesDir, e.Name()))
@@ -127,4 +135,3 @@ func PathParse(path string) string {
 
 	return path
 }
-

@@ -20,4 +20,3 @@ func DocToIndexed(d frontmatter.Document) IndexedDocument {
 		Path:    d.Path,
 	}
 }
-

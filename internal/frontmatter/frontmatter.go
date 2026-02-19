@@ -1,19 +1,18 @@
 package frontmatter
 
 type Frontmatter struct {
-	Title string
+	Title   string
 	Created string
 	Updated string
-	Tags []string
+	Tags    []string
 }
 
 var Front Frontmatter
 
 type Document struct {
-	Meta Frontmatter
+	Meta    Frontmatter
 	Content []byte
-	Path string
+	Path    string
 }
 
 var Doc Document
-

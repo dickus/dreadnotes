@@ -11,7 +11,7 @@ import (
 
 var (
 	configDir, err = os.UserConfigDir()
-	configPath = filepath.Join(configDir, "dreadnotes", "config.toml")
+	configPath     = filepath.Join(configDir, "dreadnotes", "config.toml")
 )
 
 func ConfigInPlace() bool {
@@ -63,4 +63,3 @@ func DataValidation(key string, value string) bool {
 
 	return false
 }
-

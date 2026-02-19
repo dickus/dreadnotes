@@ -9,9 +9,8 @@ import (
 )
 
 type TemplateData struct {
-	Title 	string
-	Date 	string
-	Year 	string
+	Title string
+	Date  string
 }
 
 func ApplyTemplate(tmplPath string, name string) ([]byte, error) {
@@ -23,9 +22,8 @@ func ApplyTemplate(tmplPath string, name string) ([]byte, error) {
 	now := time.Now()
 
 	data := TemplateData{
-		Title: 	name,
-		Date: 	now.Format("2006-01-02 15:04"),
-		Year: 	now.Format("2006"),
+		Title: name,
+		Date:  now.Format("2006-01-02 15:04"),
 	}
 
 	tmpl, err := template.New("note").Parse(string(content))
@@ -40,4 +38,3 @@ func ApplyTemplate(tmplPath string, name string) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
-

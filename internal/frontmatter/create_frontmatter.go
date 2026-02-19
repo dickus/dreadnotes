@@ -29,4 +29,3 @@ func CreateFrontmatter(path string, name string) {
 		fmt.Println("Couldn't write frontmatter: ", err)
 	}
 }
-

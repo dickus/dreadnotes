@@ -54,17 +54,19 @@ func remoteBranchExists(repoPath, branch string) bool {
 	cmd.Dir = repoPath
 
 	output, err := cmd.Output()
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 
 	return strings.TrimSpace(string(output)) != ""
 }
 
 func needsPull(repoPath, branch, remote string) bool {
-	return revCount(repoPath, branch + ".." + remote) > 0
+	return revCount(repoPath, branch+".."+remote) > 0
 }
 
 func needsPush(repoPath, branch, remote string) bool {
-	return revCount(repoPath, branch + ".." + remote) > 0
+	return revCount(repoPath, branch+".."+remote) > 0
 }
 
 func revCount(repoPath, revRange string) int {
@@ -72,7 +74,9 @@ func revCount(repoPath, revRange string) int {
 	cmd.Dir = repoPath
 
 	output, err := cmd.Output()
-	if err != nil { return 0 }
+	if err != nil {
+		return 0
+	}
 
 	n, _ := strconv.Atoi(strings.TrimSpace(string(output)))
 
@@ -86,16 +90,24 @@ func Sync(repoPath string) error {
 		return fmt.Errorf("Directory %s is not a git repo.\nInitialize it with 'git init %s' command.", repoPath, repoPath)
 	}
 
-	if err := run(repoPath, "git", "add", "--all"); err != nil { return err }
-
-	if !nothingToCommit(repoPath) {
-		if err := run(repoPath, "git", "commit", "-m", "update"); err != nil { return err }
+	if err := run(repoPath, "git", "add", "--all"); err != nil {
+		return err
 	}
 
-	if ok, _ := HasRemote(repoPath); !ok { return nil }
+	if !nothingToCommit(repoPath) {
+		if err := run(repoPath, "git", "commit", "-m", "update"); err != nil {
+			return err
+		}
+	}
+
+	if ok, _ := HasRemote(repoPath); !ok {
+		return nil
+	}
 
 	branch, err := currentBranch(repoPath)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	if !remoteBranchExists(repoPath, branch) {
 		return run(repoPath, "git", "push", "-u", "origin", branch)
@@ -114,7 +126,9 @@ func Sync(repoPath string) error {
 	}
 
 	if needsPush(repoPath, branch, remote) {
-		if err := run(repoPath, "git", "push", "origin", branch); err != nil { return err }
+		if err := run(repoPath, "git", "push", "origin", branch); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -128,4 +142,3 @@ func run(dir, name string, args ...string) error {
 
 	return cmd.Run()
 }
-

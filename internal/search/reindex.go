@@ -39,4 +39,3 @@ func ReindexAll(idx bleve.Index, notesPath string) error {
 
 	return nil
 }
-

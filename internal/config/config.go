@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dickus/dreadnotes/internal/utils"
 	"github.com/dickus/dreadnotes/internal/models"
+	"github.com/dickus/dreadnotes/internal/utils"
 )
 
 func LoadConfig() {
@@ -83,4 +83,3 @@ func LoadConfig() {
 		}
 	}
 }
-

@@ -12,16 +12,16 @@ import (
 
 var (
 	pickerSelected = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("2")).
-		Bold(true)
+			Foreground(lipgloss.Color("2")).
+			Bold(true)
 
 	pickerNormal = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245"))
+			Foreground(lipgloss.Color("245"))
 
 	pickerTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("69")).
-		Bold(true).
-		MarginBottom(1)
+			Foreground(lipgloss.Color("69")).
+			Bold(true).
+			MarginBottom(1)
 )
 
 type templateItem struct {
@@ -44,7 +44,9 @@ func NewTemplatePicker(templatesDir string) (TemplatePickerModel, error) {
 
 	var items []templateItem
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") { continue }
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
 
 		items = append(items, templateItem{
 			name: strings.TrimSuffix(e.Name(), ".md"),
@@ -91,7 +93,9 @@ func (m TemplatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m TemplatePickerModel) View() string {
-	if m.quitting { return "" }
+	if m.quitting {
+		return ""
+	}
 
 	var b strings.Builder
 
@@ -137,4 +141,3 @@ func RunTemplatePicker(templatesDir string) (string, error) {
 
 	return final.chosen, nil
 }
-

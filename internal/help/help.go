@@ -6,7 +6,6 @@ import (
 	"text/tabwriter"
 )
 
-
 func Short() {
 	fmt.Println(" USAGE:")
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
@@ -122,4 +121,3 @@ func SyncHelp() {
 	fmt.Println(" EXAMPLES:")
 	fmt.Println("   dreadnotes sync")
 }
-

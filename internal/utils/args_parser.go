@@ -54,7 +54,7 @@ func ArgsParser() {
 
 			tmplPath = picked
 		} else if *tmpl != "" {
-			tmplPath = filepath.Join(models.Cfg.Templates, *tmpl + ".md")
+			tmplPath = filepath.Join(models.Cfg.Templates, *tmpl+".md")
 			confDir, _ := os.UserConfigDir()
 			tmplPath = confDir + "/" + tmplPath
 
@@ -156,4 +156,3 @@ func ArgsParser() {
 		os.Exit(0)
 	}
 }
-

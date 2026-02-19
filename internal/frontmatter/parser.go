@@ -68,10 +68,10 @@ func Parser(path string, frontmatter []byte, content []byte) Document {
 	scanner := bufio.NewScanner(reader)
 
 	var (
-		title string
+		title   string
 		created string
 		updated string
-		tags []string
+		tags    []string
 	)
 
 	for scanner.Scan() {
@@ -105,14 +105,13 @@ func Parser(path string, frontmatter []byte, content []byte) Document {
 	}
 
 	return Document{
-		Meta: Frontmatter {
-			Title: title,
+		Meta: Frontmatter{
+			Title:   title,
 			Created: created,
 			Updated: updated,
-			Tags: tags,
+			Tags:    tags,
 		},
 		Content: content,
-		Path: path,
+		Path:    path,
 	}
 }
-

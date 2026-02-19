@@ -54,4 +54,3 @@ func SearchByTag(idx bleve.Index, tag string, limit int) (*bleve.SearchResult, e
 
 	return idx.Search(req)
 }
-

@@ -9,4 +9,3 @@ func main() {
 	config.LoadConfig()
 	utils.ArgsParser()
 }
-

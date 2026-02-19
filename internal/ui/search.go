@@ -123,14 +123,18 @@ func contentPreview(content string, n int) string {
 
 func getTermWidth() int {
 	w, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || w <= 0 { return 80 }
+	if err != nil || w <= 0 {
+		return 80
+	}
 
 	return w
 }
 
 func wrapLine(s string, width int) string {
 	runes := []rune(s)
-	if len(runes) <= width { return s }
+	if len(runes) <= width {
+		return s
+	}
 
 	var b strings.Builder
 	for i, r := range runes {
@@ -146,7 +150,9 @@ func wrapLine(s string, width int) string {
 func findMatchingLine(content string, query string) string {
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" { continue }
+		if trimmed == "" {
+			continue
+		}
 
 		if strings.Contains(strings.ToLower(trimmed), query) {
 			runes := []rune(trimmed)
@@ -174,7 +180,7 @@ type SearchModel struct {
 
 func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
 	return SearchModel{
-		idx: 	 idx,
+		idx:     idx,
 		tagMode: tagMode,
 	}
 }
@@ -287,4 +293,3 @@ func (m SearchModel) View() string {
 
 	return b.String()
 }
-
