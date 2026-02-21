@@ -2,116 +2,72 @@ package frontmatter
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/dickus/dreadnotes/internal/utils"
+	"gopkg.in/yaml.v3"
 )
 
-func SplitFile(note string) (path string, frontmatter []byte, content []byte) {
-	homeDir, _ := os.UserHomeDir()
-	notesDir := func(path string) string {
-		if strings.HasPrefix(path, "$HOME") {
-			return strings.Replace(path, "$HOME", homeDir, 1)
-		}
+// ParseFile reads a markdown note, extracts the YAML metadata, parses it into a Frontmatter struct, and returns the full Document.
+func ParseFile(filePath string) (Document, error) {
+	resolvedPath := utils.PathParse(filePath)
 
-		return path
-	}
-
-	file, err := os.Open(notesDir(note))
-
+	file, err := os.Open(resolvedPath)
 	if err != nil {
-		fmt.Println("Note not found.")
+		return Document{}, fmt.Errorf("failed to open note: %w", err)
 	}
 	defer file.Close()
 
-	var frontBuilder strings.Builder
-	var contentBuilder strings.Builder
+	var frontBuffer bytes.Buffer
+	var contentBuffer bytes.Buffer
 
 	scanner := bufio.NewScanner(file)
 
-	front := true
-	separator := 0
+	isFrontmatter := false
+	lineCount := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineCount++
 
-		if front {
-			if line == "---" {
-				separator++
+		if lineCount == 1 && strings.TrimSpace(line) == "---" {
+			isFrontmatter = true
 
-				continue
-			}
+			continue
+		}
 
-			if separator > 1 {
-				front = false
+		if isFrontmatter && strings.TrimSpace(line) == "---" {
+			isFrontmatter = false
 
-				continue
-			}
+			continue
+		}
 
-			frontBuilder.WriteString(line)
-			frontBuilder.WriteString("\n")
+		if isFrontmatter {
+			frontBuffer.WriteString(line + "\n")
 		} else {
-			contentBuilder.WriteString(line)
-			contentBuilder.WriteString("\n")
+			contentBuffer.WriteString(line + "\n")
 		}
 	}
 
-	if err = scanner.Err(); err != nil {
-		fmt.Println(err)
+	if err := scanner.Err(); err != nil {
+		return Document{}, fmt.Errorf("error reading file %s: %w", resolvedPath, err)
 	}
 
-	return notesDir(note), []byte(frontBuilder.String()), []byte(contentBuilder.String())
-}
+	var meta Frontmatter
+	frontBytes := frontBuffer.Bytes()
 
-func Parser(path string, frontmatter []byte, content []byte) Document {
-	reader := strings.NewReader(string(frontmatter))
-	scanner := bufio.NewScanner(reader)
-
-	var (
-		title   string
-		created string
-		updated string
-		tags    []string
-	)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.Contains(line, "title:") {
-			title = strings.Replace(line, "title: ", "", 1)
-
-			continue
-		}
-
-		if strings.Contains(line, "created:") {
-			created = strings.Replace(line, "created: ", "", 1)
-
-			continue
-		}
-
-		if strings.Contains(line, "updated:") {
-			updated = strings.Replace(line, "updated: ", "", 1)
-
-			continue
-		}
-
-		if strings.Contains(line, "tags:") {
-			prePreTags := strings.Replace(line, "tags: [", "", 1)
-			preTags := strings.Replace(prePreTags, "]", "", 1)
-			tags = strings.Split(preTags, ", ")
-
-			continue
+	if len(frontBytes) > 0 {
+		if err := yaml.Unmarshal(frontBytes, &meta); err != nil {
+			return Document{}, fmt.Errorf("failed to parse YAML in %s: %w", resolvedPath, err)
 		}
 	}
 
 	return Document{
-		Meta: Frontmatter{
-			Title:   title,
-			Created: created,
-			Updated: updated,
-			Tags:    tags,
-		},
-		Content: content,
-		Path:    path,
-	}
+		Meta:    meta,
+		Content: contentBuffer.Bytes(),
+		Path:    resolvedPath,
+	}, nil
 }

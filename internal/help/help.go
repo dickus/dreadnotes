@@ -1,11 +1,62 @@
+// Package help provides usage instructions and help messages for the CLI application.
+// It utilizes text/tabwriter to align command descriptions and flags neatly.
 package help
 
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
+// HelpData holds the information required to print a standardized help message.
+type HelpData struct {
+	Title       string
+	Description string
+	Usage       string
+	Flags       [][2]string // Each element is {flag, description}
+	Examples    []string
+}
+
+// printHelp formats and prints the help message using tabwriter.
+func printHelp(data HelpData) {
+	// Header and Description
+	if data.Title != "" {
+		fmt.Printf(" %s:\n", strings.ToUpper(data.Title))
+	}
+	if data.Description != "" {
+		fmt.Printf("   dreadnotes %s ― %s\n", data.Title, data.Description)
+		fmt.Println()
+	}
+
+	// Usage
+	if data.Usage != "" {
+		fmt.Println(" USAGE:")
+		fmt.Printf("   %s\n", data.Usage)
+		fmt.Println()
+	}
+
+	// Flags (aligned)
+	if len(data.Flags) > 0 {
+		fmt.Println(" FLAGS:")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		for _, f := range data.Flags {
+			fmt.Fprintf(w, "   %s\t%s\n", f[0], f[1])
+		}
+		w.Flush()
+		fmt.Println()
+	}
+
+	// Examples
+	if len(data.Examples) > 0 {
+		fmt.Println(" EXAMPLES:")
+		for _, ex := range data.Examples {
+			fmt.Printf("   %s\n", ex)
+		}
+	}
+}
+
+// Short prints a concise summary of available commands.
 func Short() {
 	fmt.Println(" USAGE:")
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
@@ -16,108 +67,97 @@ func Short() {
 	fmt.Println(" Run 'dreadnotes --help' for detailed usage.")
 }
 
+// Long prints the full help message (root command).
 func Long() {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	fmt.Println(" USAGE:")
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
 	fmt.Println()
+
 	fmt.Println(" COMMANDS:")
 	fmt.Fprintln(w, "   new\tCreate new note")
 	fmt.Fprintln(w, "   open\tSearch notes")
 	fmt.Fprintln(w, "   random\tOpen random note")
 	fmt.Fprintln(w, "   sync\tUpdate git repository")
-
 	w.Flush()
 
 	fmt.Println()
 	fmt.Println(" FLAGS:")
 	fmt.Fprintln(w, "   -h, --help\tShow this help")
+	w.Flush()
 
+	fmt.Println()
+	fmt.Println(" ENVIRONMENT:")
+	fmt.Fprintln(w, "   DREADNOTES_CONFIG\tOverride the default config file path")
 	w.Flush()
 
 	fmt.Println()
 	fmt.Println(" Run 'dreadnotes <COMMAND> --help' for more information on a command.")
 }
 
+// NewNoteHelp displays usage for 'new' command.
 func NewNoteHelp() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Println(" NEW:")
-	fmt.Println("   dreadnotes new ― Create new note")
-	fmt.Println()
-	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes new [FLAGS] \"<NAME>\"")
-	fmt.Println()
-	fmt.Println(" FLAGS:")
-	fmt.Fprintln(w, "   -h, --help\tShow this help")
-	fmt.Fprintln(w, "   -T <name>\tUse a specific template")
-	fmt.Fprintln(w, "   -i\tPick a template interactively")
-
-	w.Flush()
-
-	fmt.Println()
-	fmt.Println(" EXAMPLES:")
-	fmt.Println("   dreadnotes new \"My Note\"")
-	fmt.Println("   dreadnotes new -T daily \"My Note\"")
-	fmt.Println("   dreadnotes new -i \"My Note\"")
+	printHelp(HelpData{
+		Title:       "new",
+		Description: "Create new note",
+		Usage:       "dreadnotes new [FLAGS] \"<NAME>\"",
+		Flags: [][2]string{
+			{"-h, --help", "Show this help"},
+			{"-T <name>", "Use a specific template"},
+			{"-i", "Pick a template interactively"},
+		},
+		Examples: []string{
+			"dreadnotes new \"My Note\"",
+			"dreadnotes new -T daily \"My Note\"",
+			"dreadnotes new -i \"My Note\"",
+		},
+	})
 }
 
+// OpenNoteHelp displays usage for 'open' command.
 func OpenNoteHelp() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Println(" OPEN:")
-	fmt.Println("   dreadnotes open ― Search notes")
-	fmt.Println()
-	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes open [FLAGS]")
-	fmt.Println()
-	fmt.Println(" FLAGS:")
-	fmt.Fprintln(w, "   -h, --help\tShow this help")
-	fmt.Fprintln(w, "   -t, --tag\tSearch by tag")
-
-	w.Flush()
-
-	fmt.Println()
-	fmt.Println(" EXAMPLES:")
-	fmt.Println("   dreadnotes open")
-	fmt.Println("   dreadnotes open -t work")
+	printHelp(HelpData{
+		Title:       "open",
+		Description: "Search notes",
+		Usage:       "dreadnotes open [FLAGS]",
+		Flags: [][2]string{
+			{"-h, --help", "Show this help"},
+			{"-t, --tag", "Search by tag"},
+		},
+		Examples: []string{
+			"dreadnotes open",
+			"dreadnotes open -t work",
+		},
+	})
 }
 
+// RandomNoteHelp displays usage for 'random' command.
 func RandomNoteHelp() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Println(" RANDOM:")
-	fmt.Println("   dreadnotes random ― Open random note")
-	fmt.Println()
-	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes random [FLAGS]")
-	fmt.Println()
-	fmt.Println(" FLAGS:")
-	fmt.Fprintln(w, "   -h, --help\tShow this help")
-
-	w.Flush()
-
-	fmt.Println()
-	fmt.Println(" EXAMPLES:")
-	fmt.Println("   dreadnotes random")
+	printHelp(HelpData{
+		Title:       "random",
+		Description: "Open random note",
+		Usage:       "dreadnotes random [FLAGS]",
+		Flags: [][2]string{
+			{"-h, --help", "Show this help"},
+		},
+		Examples: []string{
+			"dreadnotes random",
+		},
+	})
 }
 
+// SyncHelp displays usage for 'sync' command.
 func SyncHelp() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-
-	fmt.Println(" SYNC:")
-	fmt.Println("   dreadnotes sync ― Update local git repo. Also updates remote repo if it exists")
-	fmt.Println()
-	fmt.Println(" USAGE:")
-	fmt.Println("   dreadnotes sync [FLAGS]")
-	fmt.Println()
-	fmt.Println(" FLAGS:")
-	fmt.Fprintln(w, "   -h, --help\tShow this help")
-
-	w.Flush()
-
-	fmt.Println()
-	fmt.Println(" EXAMPLES:")
-	fmt.Println("   dreadnotes sync")
+	printHelp(HelpData{
+		Title:       "sync",
+		Description: "Update local git repo. Also updates remote repo if it exists",
+		Usage:       "dreadnotes sync [FLAGS]",
+		Flags: [][2]string{
+			{"-h, --help", "Show this help"},
+		},
+		Examples: []string{
+			"dreadnotes sync",
+		},
+	})
 }

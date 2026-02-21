@@ -1,3 +1,4 @@
+// Package search provides searching for notes using bleve library.
 package search
 
 import (
@@ -7,10 +8,13 @@ import (
 	"github.com/dickus/dreadnotes/internal/frontmatter"
 )
 
+// DocToIndexed converts a parsed markdown document with frontmatter into an IndexedDocument suitable for the search engine.
 func DocToIndexed(d frontmatter.Document) IndexedDocument {
 	title := d.Meta.Title
 	if title == "" {
-		title = strings.TrimSuffix(filepath.Base(d.Path), ".md")
+		// Fallback: use filename without extension as the title
+		baseName := filepath.Base(d.Path)
+		title = strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	}
 
 	return IndexedDocument{

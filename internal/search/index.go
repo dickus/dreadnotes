@@ -7,6 +7,7 @@ import (
 	"github.com/blevesearch/bleve/v2/mapping"
 )
 
+// IndexedDocument represents a note's search-ready data structure.
 type IndexedDocument struct {
 	Title   string   `json:"title"`
 	Content string   `json:"content"`
@@ -37,10 +38,11 @@ func buildMapping() mapping.IndexMapping {
 	return indexMapping
 }
 
+// BuildIndex initializes an in-memory Bleve index and populates it with documents from the specified notesPath.
 func BuildIndex(notesPath string) (bleve.Index, error) {
-	mapping := buildMapping()
+	m := buildMapping()
 
-	idx, err := bleve.NewMemOnly(mapping)
+	idx, err := bleve.NewMemOnly(m)
 	if err != nil {
 		return nil, fmt.Errorf("creating in-memory index: %w", err)
 	}

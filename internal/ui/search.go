@@ -1,3 +1,4 @@
+// Package ui provides a user interface for searching.
 package ui
 
 import (
@@ -168,6 +169,7 @@ func findMatchingLine(content string, query string) string {
 	return ""
 }
 
+// SearchModel represents the Bubble Tea state for the interactive search UI.
 type SearchModel struct {
 	idx     bleve.Index
 	tagMode bool
@@ -178,6 +180,7 @@ type SearchModel struct {
 	chosen  string
 }
 
+// NewSearchModel initializes a new SearchModel with the given index and mode.
 func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
 	return SearchModel{
 		idx:     idx,
@@ -185,10 +188,13 @@ func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
 	}
 }
 
+// Init implements tea.Model.
 func (m SearchModel) Init() tea.Cmd { return nil }
 
+// Chosen returns the path of the selected note, or an empty string if none was selected.
 func (m SearchModel) Chosen() string { return m.chosen }
 
+// Update implements tea.Model, handling keyboard events and search results.
 func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -254,6 +260,7 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View implements tea.Model, rendering the UI based on the current state.
 func (m SearchModel) View() string {
 	var b strings.Builder
 

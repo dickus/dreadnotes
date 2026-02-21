@@ -1,3 +1,4 @@
+// Package config handles the application configuration management.
 package config
 
 import (
@@ -6,80 +7,81 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dickus/dreadnotes/internal/models"
 	"github.com/dickus/dreadnotes/internal/utils"
 )
 
-func LoadConfig() {
-	home, _ := os.UserHomeDir()
-	conf, _ := os.UserConfigDir()
+// Load sets default configuration values and overrides them with settings from the user's config file if it exists.
+func Load() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't find home directory: %v\n", err)
+	}
 
-	models.Cfg.RepoPath = filepath.Join(home, "Documents/dreadnotes")
-	models.Cfg.NotesPath = filepath.Join(home, "Documtens/dreadnotes/notes")
-	models.Cfg.Editor = "nvim"
-	models.Cfg.Templates = filepath.Join(conf, "dreadnotes", "templates")
+	conf, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't find config directory: %v\n", err)
+	}
 
-	if utils.ConfigInPlace() {
-		configStrings := utils.ReadConfig()
+	// Set robust default absolute paths using filepath.Join
+	Cfg.RepoPath = filepath.Join(home, "Documents", "dreadnotes")
+	Cfg.NotesPath = filepath.Join(Cfg.RepoPath, "notes")
+	Cfg.Editor = "nvim"
+	Cfg.Templates = filepath.Join(conf, "dreadnotes", "templates")
 
-		pathKey := 0
-		editorKey := 0
-		templateKey := 0
+	if !exists() {
+		return
+	}
 
-		for _, data := range configStrings {
-			if !strings.Contains(data, "=") {
-				fmt.Printf("Incorrect data format in '%s'.\n", data)
+	configStrings := read()
+	var pathSeen, editorSeen, templateSeen bool
 
-				continue
+	for _, data := range configStrings {
+		if !strings.Contains(data, "=") {
+			fmt.Printf("Incorrect data format in '%s'.\n", data)
+			continue
+		}
+
+		key, value := split(data)
+
+		if !validate(key, value) {
+			fmt.Printf("'%s' is not a valid data type.\n", value)
+			continue
+		}
+
+		// Idiomatic way to remove surrounding quotes
+		value = strings.Trim(value, "\"")
+
+		switch key {
+		case "notes_path":
+			if !pathSeen {
+				// Expand $HOME and update BOTH RepoPath and NotesPath correctly
+				parsedPath := utils.PathParse(value)
+				Cfg.RepoPath = parsedPath
+				Cfg.NotesPath = filepath.Join(parsedPath, "notes")
+				pathSeen = true
+			} else {
+				fmt.Printf("Duplicate '%s'. Using: %s\n", key, Cfg.NotesPath)
 			}
 
-			key, value := utils.SplitConfig(data)
-
-			if !utils.DataValidation(key, value) {
-				fmt.Printf("'%s' is not a valid data type.\n", value)
-
-				continue
+		case "editor":
+			if !editorSeen {
+				Cfg.Editor = value
+				editorSeen = true
+			} else {
+				fmt.Printf("Duplicate '%s'. Using: %s\n", key, Cfg.Editor)
 			}
 
-			switch key {
-			case "notes_path":
-				if pathKey == 0 {
-					value = strings.ReplaceAll(value, "\"", "")
-
-					models.Cfg.NotesPath = value + "/notes"
-
-					pathKey++
-				} else {
-					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Path %s will be used now.\n", key, models.Cfg.NotesPath)
-				}
-
-			case "editor":
-				if editorKey == 0 {
-					value = strings.ReplaceAll(value, "\"", "")
-
-					models.Cfg.Editor = value
-
-					editorKey++
-				} else {
-					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Editor %s will be used now.\n", key, models.Cfg.Editor)
-				}
-
-			case "templates_path":
-				if templateKey == 0 {
-					value = strings.ReplaceAll(value, "\"", "")
-
-					models.Cfg.Templates = value
-
-					models.Cfg.Templates = strings.Replace(models.Cfg.Templates, "$HOME/.config/", "", 1)
-
-					templateKey++
-				} else {
-					fmt.Printf("'%s' has a duplicate. Check config.toml to resolve this issue. Templates path %s will be used now.\n", key, models.Cfg.Templates)
-				}
-
-			default:
-				fmt.Printf("Key '%s' is unknown. Check config.toml to resolve this issue.\n", key)
+		case "templates_path":
+			if !templateSeen {
+				// We now store the TRUE absolute path, handling $HOME via PathParse
+				Cfg.Templates = utils.PathParse(value)
+				templateSeen = true
+			} else {
+				fmt.Printf("Duplicate '%s'. Using: %s\n", key, Cfg.Templates)
 			}
+
+		default:
+			fmt.Printf("Key '%s' is unknown. Check config.toml.\n", key)
 		}
 	}
 }

@@ -1,3 +1,4 @@
+// Package sync provides simplified git versioning to version and store notes.
 package sync
 
 import (
@@ -7,9 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dickus/dreadnotes/internal/notes"
+	"github.com/dickus/dreadnotes/internal/utils"
 )
 
+// IsRepo checks if the specified path is a valid git repository.
 func IsRepo(path string) bool {
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = path
@@ -22,9 +24,11 @@ func nothingToCommit(repoPath string) bool {
 	cmd.Dir = repoPath
 
 	output, err := cmd.Output()
+
 	return err == nil && strings.TrimSpace(string(output)) == ""
 }
 
+// HasRemote determines if the repository has any configured remotes.
 func HasRemote(repoPath string) (bool, error) {
 	cmd := exec.Command("git", "remote")
 	cmd.Dir = repoPath
@@ -43,7 +47,7 @@ func currentBranch(repoPath string) (string, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("Couldn't define current branch: %w", err)
+		return "", fmt.Errorf("couldn't define current branch: %w", err)
 	}
 
 	return strings.TrimSpace(string(output)), nil
@@ -62,11 +66,13 @@ func remoteBranchExists(repoPath, branch string) bool {
 }
 
 func needsPull(repoPath, branch, remote string) bool {
+	// Commits in remote but not in local
 	return revCount(repoPath, branch+".."+remote) > 0
 }
 
 func needsPush(repoPath, branch, remote string) bool {
-	return revCount(repoPath, branch+".."+remote) > 0
+	// Commits in local but not in remote (Fixed logic)
+	return revCount(repoPath, remote+".."+branch) > 0
 }
 
 func revCount(repoPath, revRange string) int {
@@ -83,23 +89,27 @@ func revCount(repoPath, revRange string) int {
 	return n
 }
 
+// Sync adds all changes, commits them, and synchronizes the local repository with the remote (origin) via fetch, rebase, and push.
 func Sync(repoPath string) error {
-	repoPath = notes.PathParse(repoPath)
+	repoPath = strings.TrimSuffix(utils.PathParse(repoPath), "/notes")
 
 	if !IsRepo(repoPath) {
-		return fmt.Errorf("Directory %s is not a git repo.\nInitialize it with 'git init %s' command.", repoPath, repoPath)
+		return fmt.Errorf("directory %s is not a git repo. Initialize it with 'git init %s'", repoPath, repoPath)
 	}
 
+	// Stage all changes
 	if err := run(repoPath, "git", "add", "--all"); err != nil {
 		return err
 	}
 
+	// Commit if there are staged changes
 	if !nothingToCommit(repoPath) {
 		if err := run(repoPath, "git", "commit", "-m", "update"); err != nil {
 			return err
 		}
 	}
 
+	// Stop here if there's no remote configured
 	if ok, _ := HasRemote(repoPath); !ok {
 		return nil
 	}
@@ -109,12 +119,14 @@ func Sync(repoPath string) error {
 		return err
 	}
 
+	// If the branch doesn't exist on remote, just push -u and we're done
 	if !remoteBranchExists(repoPath, branch) {
 		return run(repoPath, "git", "push", "-u", "origin", branch)
 	}
 
+	// Fetch latest changes to calculate pull/push needs
 	if err := run(repoPath, "git", "fetch", "origin", branch); err != nil {
-		return fmt.Errorf("Couldn't fetch data from origin: %w", err)
+		return fmt.Errorf("couldn't fetch data from origin: %w", err)
 	}
 
 	remote := "origin/" + branch

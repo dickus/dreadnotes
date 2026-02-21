@@ -29,6 +29,7 @@ type templateItem struct {
 	path string
 }
 
+// TemplatePickerModel represents the Bubble Tea state for the template selection UI.
 type TemplatePickerModel struct {
 	items    []templateItem
 	cursor   int
@@ -36,15 +37,16 @@ type TemplatePickerModel struct {
 	quitting bool
 }
 
+// NewTemplatePicker initializes the model with available markdown templates.
 func NewTemplatePicker(templatesDir string) (TemplatePickerModel, error) {
 	entries, err := os.ReadDir(templatesDir)
 	if err != nil {
-		return TemplatePickerModel{}, fmt.Errorf("Couldn't read templates dir: %w", err)
+		return TemplatePickerModel{}, fmt.Errorf("couldn't read templates dir: %w", err)
 	}
 
 	var items []templateItem
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
 
@@ -55,14 +57,16 @@ func NewTemplatePicker(templatesDir string) (TemplatePickerModel, error) {
 	}
 
 	if len(items) == 0 {
-		return TemplatePickerModel{}, fmt.Errorf("No templates found in %s", templatesDir)
+		return TemplatePickerModel{}, fmt.Errorf("no templates found in %s", templatesDir)
 	}
 
 	return TemplatePickerModel{items: items}, nil
 }
 
+// Init implements tea.Model.
 func (m TemplatePickerModel) Init() tea.Cmd { return nil }
 
+// Update implements tea.Model, handling keyboard navigation.
 func (m TemplatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -92,6 +96,7 @@ func (m TemplatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View implements tea.Model, rendering the list of templates.
 func (m TemplatePickerModel) View() string {
 	if m.quitting {
 		return ""
@@ -119,11 +124,10 @@ func (m TemplatePickerModel) View() string {
 	return b.String()
 }
 
-func RunTemplatePicker(templatesDir string) (string, error) {
-	conf, _ := os.UserConfigDir()
-	confDir := conf + "/" + templatesDir
-
-	m, err := NewTemplatePicker(confDir)
+// RunTemplatePicker launches the interactive UI for selecting a markdown template.
+// It returns the path to the chosen template or an error if none was selected.
+func RunTemplatePicker(templatesPath string) (string, error) {
+	m, err := NewTemplatePicker(templatesPath)
 	if err != nil {
 		return "", err
 	}
@@ -131,12 +135,12 @@ func RunTemplatePicker(templatesDir string) (string, error) {
 	p := tea.NewProgram(m)
 	result, err := p.Run()
 	if err != nil {
-		return "", fmt.Errorf("Picker error: %w", err)
+		return "", fmt.Errorf("picker error: %w", err)
 	}
 
 	final := result.(TemplatePickerModel)
 	if final.chosen == "" {
-		return "", fmt.Errorf("No template selected")
+		return "", fmt.Errorf("no template selected")
 	}
 
 	return final.chosen, nil

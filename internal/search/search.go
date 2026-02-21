@@ -4,13 +4,19 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/search/query"
 )
 
-func IndexDocument(idx bleve.Index, doc IndexedDocument) error { return idx.Index(doc.Path, doc) }
+// IndexDocument adds or updates a document in the search index.
+func IndexDocument(idx bleve.Index, doc IndexedDocument) error {
+	return idx.Index(doc.Path, doc)
+}
 
-func DeleteDocument(idx bleve.Index, path string) error { return idx.Delete(path) }
+// DeleteDocument removes a document from the search index by its path.
+func DeleteDocument(idx bleve.Index, path string) error {
+	return idx.Delete(path)
+}
 
+// Search queries the index for a given string across titles and contents, using a combination of prefix and fuzzy matching.
 func Search(idx bleve.Index, queryStr string, limit int) (*bleve.SearchResult, error) {
 	queryStr = strings.TrimSpace(queryStr)
 	if queryStr == "" {
@@ -35,18 +41,20 @@ func Search(idx bleve.Index, queryStr string, limit int) (*bleve.SearchResult, e
 
 	req := bleve.NewSearchRequest(combined)
 	req.Size = limit
+	// Requesting these fields to be returned in the search results
 	req.Fields = []string{"title", "content", "path"}
 
 	return idx.Search(req)
 }
 
+// SearchByTag finds documents that contain the specified tag exactly.
 func SearchByTag(idx bleve.Index, tag string, limit int) (*bleve.SearchResult, error) {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {
 		return &bleve.SearchResult{}, nil
 	}
 
-	q := query.NewTermQuery(strings.ToLower(tag))
+	q := bleve.NewTermQuery(strings.ToLower(tag))
 	q.SetField("tags")
 
 	req := bleve.NewSearchRequestOptions(q, limit, 0, false)
