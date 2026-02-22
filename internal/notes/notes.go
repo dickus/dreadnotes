@@ -83,6 +83,7 @@ func OpenNote(file string) error {
 	args = append(args, file)
 
 	cmd := exec.Command(editor, args...)
+	cmd.Dir = filepath.Dir(file)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
