@@ -1,5 +1,5 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/dickus/dreadnotes.svg)](https://pkg.go.dev/github.com/dickus/dreadnotes)<br>
-[![Go Report Card](https://goreportcard.com/badge/github.com/dickus/dreadnotes)](https://goreportcard.com/report/github.com/dickus/dreadnotes)<br>
+[![Go Reference](https://pkg.go.dev/badge/github.com/dickus/dreadnotes.svg)](https://pkg.go.dev/github.com/dickus/dreadnotes)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dickus/dreadnotes)](https://goreportcard.com/report/github.com/dickus/dreadnotes)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/dickus/dreadnotes)](https://github.com/dickus/dreadnotes/releases)
 
 **Dreadnotes** is yet another simple and lightweight CLI tool for managing your notes/knowledge base.
@@ -147,4 +147,13 @@ Before you can use this command, you need to set up local repo and link it to a 
 **Usage:**
 ```bash
 dreadnotes sync
+```
+
+### Fix (`doctor`)
+
+Check your notes for broken wikilinks, duplicate titles and empty content.
+
+**Usage:**
+```bash
+dreadnotes doctor
 ```

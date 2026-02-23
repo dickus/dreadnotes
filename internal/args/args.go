@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dickus/dreadnotes/internal/config"
+	"github.com/dickus/dreadnotes/internal/doctor"
 	"github.com/dickus/dreadnotes/internal/help"
 	"github.com/dickus/dreadnotes/internal/notes"
 	"github.com/dickus/dreadnotes/internal/search"
@@ -166,6 +167,26 @@ func ArgsParser() {
 
 			os.Exit(1)
 		}
+
+	case "doctor":
+		doctorCmd := flag.NewFlagSet("doctor", flag.ExitOnError)
+
+		doctorCmd.Usage = func() {
+			help.DoctorHelp()
+
+			os.Exit(0)
+		}
+
+		doctorCmd.Parse(os.Args[2:])
+
+		report, err := doctor.Run(config.Cfg.NotesPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Doctor failed: %v\n", err)
+
+			os.Exit(1)
+		}
+
+		doctor.PrintReport(report)
 
 	default:
 		help.Short()

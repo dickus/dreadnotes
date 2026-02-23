@@ -62,7 +62,7 @@ func Short() {
 	fmt.Println("   dreadnotes <COMMAND> [FLAGS]")
 	fmt.Println()
 	fmt.Println(" COMMANDS:")
-	fmt.Println("   new, open, random, sync")
+	fmt.Println("   new, open, random, sync, doctor")
 	fmt.Println()
 	fmt.Println(" Run 'dreadnotes --help' for detailed usage.")
 }
@@ -80,6 +80,7 @@ func Long() {
 	fmt.Fprintln(w, "   open\tSearch notes")
 	fmt.Fprintln(w, "   random\tOpen random note")
 	fmt.Fprintln(w, "   sync\tUpdate git repository")
+	fmt.Fprintln(w, "   doctor\tCheck for problems")
 	w.Flush()
 
 	fmt.Println()
@@ -158,6 +159,21 @@ func SyncHelp() {
 		},
 		Examples: []string{
 			"dreadnotes sync",
+		},
+	})
+}
+
+// DoctorHelp displays usage for 'doctor' command.
+func DoctorHelp() {
+	printHelp(HelpData{
+		Title:       "doctor",
+		Description: "Check notes for duplicates, empty content and broken links",
+		Usage:       "dreadnotes doctor [FLAGS]",
+		Flags: [][2]string{
+			{"-h, --help", "Show this help"},
+		},
+		Examples: []string{
+			"dreadnotes doctor",
 		},
 	})
 }
