@@ -109,6 +109,8 @@ dreadnotes new -i "Refactoring Plan"
 
 You can browse using titles and content or filter by specific tags.
 
+To move between found notes use Alt-j/k. It was made like this to avoid issues with using tmux.
+
 **Usage:**
 ```bash
 dreadnotes open [FLAGS]
@@ -157,3 +159,106 @@ Check your notes for broken wikilinks, duplicate titles and empty content.
 ```bash
 dreadnotes doctor
 ```
+
+## Neovim tips
+
+If you're using Neovim, I suggest using several functions to make the experience a bit more pleasant.
+
+### Update time on write
+
+```lua
+vim.api.nvim_create_autocmd("BufWritePre", {
+    pattern = "*.md",
+    callback = function()
+        local save_cursor = vim.fn.getpos(".")
+        local n = math.min(10, vim.fn.line("$"))
+        local lines = vim.api.nvim_buf_get_lines(0, 0, n, false)
+
+        local now = os.time()
+        local tz = os.date("%z", now)
+        local tz_formatted = tz:sub(1, 3) .. ":" .. tz:sub(4, 5)
+        local new_date = os.date("updated: %Y-%m-%d %H:%M")
+
+        for i, line in ipairs(lines) do
+            if line:match("^updated:") then
+                vim.api.nvim_buf_set_lines(0, i-1, i, false, {new_date})
+                break
+            end
+        end
+
+        vim.fn.setpos(".", save_cursor)
+    end,
+})
+```
+
+This function updates the modified time of the note when you save the file. It will help **dreadnotes** know that the note is updated based on frontmatter field.
+
+### Easy tagging
+
+```lua
+local function add_tags()
+    vim.ui.input({ prompt = "Tags (separated by comma): " }, function(input)
+        if not input or input == "" then
+            return
+        end
+
+        local tags = {}
+        for tag in input:gmatch("[^,]+") do
+            tag = tag:match("^%s*(.-)%s*$")
+            if tag ~= "" then
+                table.insert(tags, tag)
+            end
+        end
+
+        local tags_line = "tags: [" .. table.concat(tags, ", ") .. "]"
+
+        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        local frontmatter_start = nil
+        local frontmatter_end = nil
+        local existing_tags_line = nil
+
+        for i, line in ipairs(lines) do
+            if line:match("^%-%-%-") then
+                if not frontmatter_start then
+                    frontmatter_start = i
+                else
+                    frontmatter_end = i
+                    break
+                end
+            end
+            if frontmatter_start and not frontmatter_end then
+                if line:match("^tags:") then
+                    existing_tags_line = i
+                end
+            end
+        end
+
+        if frontmatter_start and frontmatter_end then
+            if existing_tags_line then
+                local old = lines[existing_tags_line]:match("%[(.-)%]") or ""
+                for tag in old:gmatch("[^,]+") do
+                    tag = tag:match("^%s*(.-)%s*$")
+                    if tag ~= "" then
+                        local exists = false
+                        for _, t in ipairs(tags) do
+                            if t == tag then exists = true; break end
+                        end
+                        if not exists then
+                            table.insert(tags, 1, tag)
+                        end
+                    end
+                end
+                tags_line = "tags: [" .. table.concat(tags, ", ") .. "]"
+                vim.api.nvim_buf_set_lines(0, existing_tags_line - 1, existing_tags_line, false, { tags_line })
+            end
+        else
+            local header = { "---", tags_line, "---", "" }
+            vim.api.nvim_buf_set_lines(0, 0, 0, false, header)
+        end
+    end)
+end
+
+vim.keymap.set("n", "<leader>tt", add_tags, { desc = " Add tags to frontmatter" })
+```
+
+This function will let you add tags faster without having to move to tags frontmatter field. Be aware that it works only for tags placed in [].
