@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,6 +13,8 @@ import (
 	"github.com/dickus/dreadnotes/internal/search"
 	"golang.org/x/term"
 )
+
+const visibleResults = 6
 
 var (
 	activeTitle = lipgloss.NewStyle().
@@ -30,8 +33,18 @@ var (
 			Render("  ──────────────────────────────")
 
 	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("69")).
+			Foreground(lipgloss.Color("4")).
 			Bold(true)
+
+	activeInputStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15"))
+
+	placeholderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240"))
+
+	cursorStyle = lipgloss.NewStyle().
+			Bold(true).
+			Underline(false)
 )
 
 type searchResultMsg struct {
@@ -46,25 +59,53 @@ type resultItem struct {
 	snippet string
 }
 
-func performSearch(idx bleve.Index, query string, tagMode bool) tea.Cmd {
+func performSearch(m SearchModel) tea.Cmd {
 	return func() tea.Msg {
-		if strings.TrimSpace(query) == "" {
-			return searchResultMsg{}
-		}
+		hasValidDateFilter := !m.tagMode && len(m.dateStart) >= 10
+		queryEmpty := strings.TrimSpace(m.query) == ""
 
 		var res *bleve.SearchResult
 		var err error
 
-		if tagMode {
-			res, err = search.SearchByTag(idx, query, 20)
+		limit := 100
+
+		if m.tagMode {
+			if queryEmpty {
+				req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), limit, 0, false)
+				req.Fields = []string{"title", "content"}
+				res, err = m.idx.Search(req)
+			} else {
+				res, err = search.SearchByTag(m.idx, m.query, limit)
+			}
 		} else {
-			res, err = search.Search(idx, query, 20)
+			if hasValidDateFilter {
+				start, end, parseErr := parseDateRange(m.dateStart, m.dateEnd)
+				if parseErr != nil {
+					return searchResultMsg{err: fmt.Errorf("invalid date format: use YYYY-MM-DD")}
+				}
+
+				dateField := "created"
+				if m.searchUpdated {
+					dateField = "updated"
+				}
+
+				res, err = search.SearchWithDateFilter(m.idx, m.query, start, end, dateField, limit)
+			} else {
+				if queryEmpty {
+					req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), limit, 0, false)
+					req.Fields = []string{"title", "content"}
+					res, err = m.idx.Search(req)
+				} else {
+					res, err = search.Search(m.idx, m.query, limit)
+				}
+			}
 		}
+
 		if err != nil {
 			return searchResultMsg{err: err}
 		}
 
-		queryLower := strings.ToLower(strings.TrimSpace(query))
+		queryLower := strings.ToLower(strings.TrimSpace(m.query))
 		items := make([]resultItem, 0, len(res.Hits))
 
 		for _, hit := range res.Hits {
@@ -72,14 +113,12 @@ func performSearch(idx bleve.Index, query string, tagMode bool) tea.Cmd {
 			content, _ := hit.Fields["content"].(string)
 
 			var snippet string
-			if tagMode {
-				snippet = contentPreview(content, 2)
-			} else {
+			if !m.tagMode && !queryEmpty {
 				snippet = findMatchingLine(content, queryLower)
+			}
 
-				if snippet == "" {
-					snippet = contentPreview(content, 2)
-				}
+			if snippet == "" {
+				snippet = contentPreview(content, 5)
 			}
 
 			items = append(items, resultItem{
@@ -94,13 +133,48 @@ func performSearch(idx bleve.Index, query string, tagMode bool) tea.Cmd {
 	}
 }
 
+// parseDateRange is a helper function to properly parse dates.
+func parseDateRange(startStr, endStr string) (time.Time, time.Time, error) {
+	start, err := time.Parse("2006-01-02", startStr)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+
+	var end time.Time
+	if strings.TrimSpace(endStr) == "" || len(endStr) < 10 {
+		end = start.Add(24*time.Hour - time.Nanosecond)
+	} else {
+		end, err = time.Parse("2006-01-02", endStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+
+		end = end.Add(24*time.Hour - time.Nanosecond)
+	}
+
+	return start, end, nil
+}
+
 func contentPreview(content string, n int) string {
 	var lines []string
+	var contentCount int
+	var lastWasEmpty bool
+
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
+
 		if trimmed == "" {
+			if lastWasEmpty || len(lines) == 0 {
+				continue
+			}
+
+			lines = append(lines, "")
+			lastWasEmpty = true
+
 			continue
 		}
+
+		lastWasEmpty = false
 
 		runes := []rune(trimmed)
 		if len(runes) > 120 {
@@ -110,16 +184,21 @@ func contentPreview(content string, n int) string {
 		width := getTermWidth() - 4
 		lines = append(lines, wrapLine(trimmed, width))
 
-		if len(lines) >= n {
+		contentCount++
+		if contentCount >= n {
 			break
 		}
+	}
+
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
 	}
 
 	if len(lines) == 0 {
 		return ""
 	}
 
-	return strings.Join(lines, "\n\n")
+	return strings.Join(lines, "\n")
 }
 
 func getTermWidth() int {
@@ -142,6 +221,7 @@ func wrapLine(s string, width int) string {
 		if i > 0 && i%width == 0 {
 			b.WriteRune('\n')
 		}
+
 		b.WriteRune(r)
 	}
 
@@ -160,6 +240,7 @@ func findMatchingLine(content string, query string) string {
 			if len(runes) > 120 {
 				trimmed = string(runes[:120]) + "…"
 			}
+
 			width := getTermWidth() - 4
 
 			return wrapLine(trimmed, width)
@@ -169,18 +250,23 @@ func findMatchingLine(content string, query string) string {
 	return ""
 }
 
-// SearchModel represents the Bubble Tea state for the interactive search UI.
 type SearchModel struct {
 	idx     bleve.Index
 	tagMode bool
 	query   string
-	results []resultItem
-	cursor  int
-	err     error
-	chosen  string
+
+	dateStart     string
+	dateEnd       string
+	focusIndex    int
+	searchUpdated bool
+
+	results       []resultItem
+	cursor        int
+	err           error
+	chosen        string
+	viewportStart int
 }
 
-// NewSearchModel initializes a new SearchModel with the given index and mode.
 func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
 	return SearchModel{
 		idx:     idx,
@@ -188,22 +274,35 @@ func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
 	}
 }
 
-// Init implements tea.Model.
-func (m SearchModel) Init() tea.Cmd { return nil }
+func (m SearchModel) Init() tea.Cmd { return performSearch(m) }
 
-// Chosen returns the path of the selected note, or an empty string if none was selected.
 func (m SearchModel) Chosen() string { return m.chosen }
 
-// Update implements tea.Model, handling keyboard events and search results.
+func (m SearchModel) updateViewport() SearchModel {
+	if len(m.results) == 0 {
+		m.viewportStart = 0
+
+		return m
+	}
+
+	centerOffset := visibleResults / 2
+	maxStart := max(0, len(m.results)-visibleResults)
+
+	m.viewportStart = max(0, min(m.cursor-centerOffset, maxStart))
+
+	return m
+}
+
 func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyRunes && msg.Alt {
+		if msg.Alt && msg.Type == tea.KeyRunes {
 			switch string(msg.Runes) {
 			case "j":
 				if len(m.results) > 0 {
 					m.cursor = (m.cursor + 1) % len(m.results)
+					m = m.updateViewport()
 				}
 
 				return m, nil
@@ -211,9 +310,17 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "k":
 				if len(m.results) > 0 {
 					m.cursor = (m.cursor - 1 + len(m.results)) % len(m.results)
+					m = m.updateViewport()
 				}
 
 				return m, nil
+
+			case "d":
+				if !m.tagMode {
+					m.searchUpdated = !m.searchUpdated
+
+					return m, performSearch(m)
+				}
 			}
 		}
 
@@ -221,12 +328,11 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 
-		case tea.KeyBackspace:
-			if len(m.query) > 0 {
-				runes := []rune(m.query)
-				m.query = string(runes[:len(runes)-1])
+		case tea.KeyTab:
+			if !m.tagMode {
+				m.focusIndex = (m.focusIndex + 1) % 3
 
-				return m, performSearch(m.idx, m.query, m.tagMode)
+				return m, nil
 			}
 
 		case tea.KeyEnter:
@@ -236,41 +342,127 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		case tea.KeySpace:
-			m.query += " "
-			m.cursor = 0
+		case tea.KeyBackspace:
+			changed := false
+			if m.focusIndex == 0 && len(m.query) > 0 {
+				m.query = string([]rune(m.query)[:len([]rune(m.query))-1])
+				changed = true
+			} else if m.focusIndex == 1 && len(m.dateStart) > 0 {
+				m.dateStart = string([]rune(m.dateStart)[:len([]rune(m.dateStart))-1])
+				changed = true
+			} else if m.focusIndex == 2 && len(m.dateEnd) > 0 {
+				m.dateEnd = string([]rune(m.dateEnd)[:len([]rune(m.dateEnd))-1])
+				changed = true
+			}
+			if changed {
+				m.cursor = 0
+				m.viewportStart = 0
 
-			return m, performSearch(m.idx, m.query, m.tagMode)
+				return m, performSearch(m)
+			}
+
+		case tea.KeySpace:
+			if m.focusIndex == 0 {
+				m.query += " "
+				m.cursor = 0
+				m.viewportStart = 0
+
+				return m, performSearch(m)
+			}
 
 		case tea.KeyRunes:
-			m.query += string(msg.Runes)
-			m.cursor = 0
+			if m.focusIndex == 0 {
+				m.query += string(msg.Runes)
+				m.cursor = 0
+				m.viewportStart = 0
 
-			return m, performSearch(m.idx, m.query, m.tagMode)
+				return m, performSearch(m)
+			} else {
+				char := string(msg.Runes)
+				if strings.ContainsAny(char, "0123456789-") {
+					if m.focusIndex == 1 {
+						m.dateStart += char
+					} else if m.focusIndex == 2 {
+						m.dateEnd += char
+					}
+
+					m.cursor = 0
+					m.viewportStart = 0
+
+					return m, performSearch(m)
+				}
+			}
 		}
 
 	case searchResultMsg:
 		m.err = msg.err
-		m.results = msg.items
+		if msg.err == nil {
+			m.results = msg.items
+		} else {
+			m.results = nil
+		}
+
 		if m.cursor >= len(m.results) {
 			m.cursor = max(0, len(m.results)-1)
 		}
+
+		m = m.updateViewport()
 	}
 
 	return m, nil
 }
 
-// View implements tea.Model, rendering the UI based on the current state.
 func (m SearchModel) View() string {
 	var b strings.Builder
 
-	label := "Search"
-	if m.tagMode {
-		label = "Tag"
-	}
+	cursor := cursorStyle.Render("_")
 
-	b.WriteString(promptStyle.Render(fmt.Sprintf("  %s: ", label)))
-	b.WriteString(fmt.Sprintf("%s▁\n\n", m.query))
+	if m.tagMode {
+		b.WriteString(promptStyle.Render("  Tag: "))
+		if m.focusIndex == 0 {
+			b.WriteString(activeInputStyle.Render(m.query) + cursor + "\n\n")
+		} else {
+			b.WriteString(m.query + "\n\n")
+		}
+	} else {
+		targetName := "Created"
+		if m.searchUpdated {
+			targetName = "Updated"
+		}
+
+		b.WriteString(promptStyle.Render("  Search : "))
+		if m.focusIndex == 0 {
+			b.WriteString(activeInputStyle.Render(m.query) + cursor + "\n")
+		} else {
+			b.WriteString(m.query + "\n")
+		}
+
+		renderDate := func(val string, focused bool) string {
+			if val == "" {
+				if focused {
+					firstY := lipgloss.NewStyle().
+						Bold(true).
+						Underline(true).
+						Render(" ")
+
+					return firstY + placeholderStyle.Render("YYY-MM-DD")
+				}
+
+				return placeholderStyle.Render("YYYY-MM-DD")
+			}
+			if focused {
+				return activeInputStyle.Render(val) + cursor
+			}
+
+			return activeInputStyle.Render(val)
+		}
+
+		b.WriteString(promptStyle.Render(fmt.Sprintf("  %-7s: ", targetName)))
+		b.WriteString(renderDate(m.dateStart, m.focusIndex == 1) + "\n")
+
+		b.WriteString(promptStyle.Render("  To     : "))
+		b.WriteString(renderDate(m.dateEnd, m.focusIndex == 2) + "\n\n")
+	}
 
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("  Error: %v\n", m.err))
@@ -278,16 +470,20 @@ func (m SearchModel) View() string {
 		return b.String()
 	}
 
-	if len(m.results) == 0 && m.query != "" {
+	if len(m.results) == 0 {
 		b.WriteString("  No results.\n")
 
 		return b.String()
 	}
 
-	for i, r := range m.results {
-		if i == m.cursor {
-			b.WriteString("❯ " + activeTitle.Render(r.title) + "\n")
+	start := m.viewportStart
+	end := min(start+visibleResults, len(m.results))
+	slice := m.results[start:end]
 
+	for i, r := range slice {
+		actualIndex := start + i
+		if actualIndex == m.cursor {
+			b.WriteString("❯ " + activeTitle.Render(r.title) + "\n")
 			if r.snippet != "" {
 				b.WriteString(snippetStyle.Render(r.snippet) + "\n")
 			}

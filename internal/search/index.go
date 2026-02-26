@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
@@ -9,10 +10,12 @@ import (
 
 // IndexedDocument represents a note's search-ready data structure.
 type IndexedDocument struct {
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
-	Path    string   `json:"path"`
+	Title   string    `json:"title"`
+	Content string    `json:"content"`
+	Tags    []string  `json:"tags"`
+	Path    string    `json:"path"`
+	Created time.Time `json:"created"`
+	Updated time.Time `json:"updated"`
 }
 
 func buildMapping() mapping.IndexMapping {
@@ -25,11 +28,15 @@ func buildMapping() mapping.IndexMapping {
 	storedOnlyFieldMapping.Index = false
 	storedOnlyFieldMapping.Store = true
 
+	dateFieldMapping := bleve.NewDateTimeFieldMapping()
+
 	docMapping := bleve.NewDocumentMapping()
 	docMapping.AddFieldMappingsAt("title", textFieldMapping)
 	docMapping.AddFieldMappingsAt("content", textFieldMapping)
 	docMapping.AddFieldMappingsAt("tags", keywordFieldMapping)
 	docMapping.AddFieldMappingsAt("path", storedOnlyFieldMapping)
+	docMapping.AddFieldMappingsAt("created", dateFieldMapping)
+	docMapping.AddFieldMappingsAt("updated", dateFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()
 	indexMapping.DefaultMapping = docMapping

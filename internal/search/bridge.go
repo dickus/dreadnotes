@@ -22,5 +22,7 @@ func DocToIndexed(d frontmatter.Document) IndexedDocument {
 		Content: string(d.Content),
 		Tags:    d.Meta.Tags,
 		Path:    d.Path,
+		Created: d.Meta.Created.Time,
+		Updated: d.Meta.Updated.Time,
 	}
 }

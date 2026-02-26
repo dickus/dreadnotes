@@ -107,9 +107,11 @@ dreadnotes new -i "Refactoring Plan"
 
 ### Find (`open`)
 
-You can browse using titles and content or filter by specific tags.
+You can browse using titles and content filtered by creation and modification dates. You can also filter search by specific tags.
 
 To move between found notes use Alt-j/k. It was made like this to avoid issues with using tmux.
+
+To switch between creation/modification dates filter use Alt-d.
 
 **Usage:**
 ```bash
