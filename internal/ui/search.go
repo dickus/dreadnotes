@@ -188,18 +188,55 @@ func getTermWidth() int {
 }
 
 func wrapLine(s string, width int) string {
-	runes := []rune(s)
-	if len(runes) <= width {
+	if width <= 0 {
+		return s
+	}
+
+	words := strings.Fields(s)
+	if len(words) == 0 {
 		return s
 	}
 
 	var b strings.Builder
-	for i, r := range runes {
-		if i > 0 && i%width == 0 {
-			b.WriteRune('\n')
+	currentLineWidth := 0
+
+	for _, word := range words {
+		runes := []rune(word)
+		wordLen := len(runes)
+
+		if wordLen > width {
+			if currentLineWidth > 0 {
+				b.WriteRune('\n')
+				currentLineWidth = 0
+			}
+
+			for _, r := range runes {
+				if currentLineWidth == width {
+					b.WriteRune('\n')
+					currentLineWidth = 0
+				}
+
+				b.WriteRune(r)
+				currentLineWidth++
+			}
+
+			continue
 		}
 
-		b.WriteRune(r)
+		if currentLineWidth == 0 {
+			b.WriteString(word)
+			currentLineWidth = wordLen
+		} else {
+			if currentLineWidth+1+wordLen > width {
+				b.WriteRune('\n')
+				b.WriteString(word)
+				currentLineWidth = wordLen
+			} else {
+				b.WriteRune(' ')
+				b.WriteString(word)
+				currentLineWidth += 1 + wordLen
+			}
+		}
 	}
 
 	return b.String()
