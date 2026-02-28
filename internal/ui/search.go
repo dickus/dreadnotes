@@ -61,46 +61,24 @@ type resultItem struct {
 
 func performSearch(m SearchModel) tea.Cmd {
 	return func() tea.Msg {
-		hasValidDateFilter := !m.tagMode && len(m.dateStart) >= 10
-		queryEmpty := strings.TrimSpace(m.query) == ""
-
-		var res *bleve.SearchResult
-		var err error
-
 		limit := 100
 
-		if m.tagMode {
-			if queryEmpty {
-				req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), limit, 0, false)
-				req.Fields = []string{"title", "content"}
-				res, err = m.idx.Search(req)
-			} else {
-				res, err = search.SearchByTag(m.idx, m.query, limit)
-			}
-		} else {
-			if hasValidDateFilter {
-				start, end, parseErr := parseDateRange(m.dateStart, m.dateEnd)
-				if parseErr != nil {
-					return searchResultMsg{err: fmt.Errorf("invalid date format: use YYYY-MM-DD")}
-				}
+		var start, end time.Time
+		var err error
 
-				dateField := "created"
-				if m.searchUpdated {
-					dateField = "updated"
-				}
-
-				res, err = search.SearchWithDateFilter(m.idx, m.query, start, end, dateField, limit)
-			} else {
-				if queryEmpty {
-					req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), limit, 0, false)
-					req.Fields = []string{"title", "content"}
-					res, err = m.idx.Search(req)
-				} else {
-					res, err = search.Search(m.idx, m.query, limit)
-				}
+		if len(m.dateStart) >= 10 {
+			start, end, err = parseDateRange(m.dateStart, m.dateEnd)
+			if err != nil {
+				return searchResultMsg{err: fmt.Errorf("invalid date format: use YYYY-MM-DD")}
 			}
 		}
 
+		dateField := "created"
+		if m.searchUpdated {
+			dateField = "updated"
+		}
+
+		res, err := search.Search(m.idx, m.query, m.tag, start, end, dateField, limit)
 		if err != nil {
 			return searchResultMsg{err: err}
 		}
@@ -113,7 +91,7 @@ func performSearch(m SearchModel) tea.Cmd {
 			content, _ := hit.Fields["content"].(string)
 
 			var snippet string
-			if !m.tagMode && !queryEmpty {
+			if queryLower != "" {
 				snippet = findMatchingLine(content, queryLower)
 			}
 
@@ -133,7 +111,6 @@ func performSearch(m SearchModel) tea.Cmd {
 	}
 }
 
-// parseDateRange is a helper function to properly parse dates.
 func parseDateRange(startStr, endStr string) (time.Time, time.Time, error) {
 	start, err := time.Parse("2006-01-02", startStr)
 	if err != nil {
@@ -251,9 +228,9 @@ func findMatchingLine(content string, query string) string {
 }
 
 type SearchModel struct {
-	idx     bleve.Index
-	tagMode bool
-	query   string
+	idx   bleve.Index
+	query string
+	tag   string
 
 	dateStart     string
 	dateEnd       string
@@ -267,10 +244,9 @@ type SearchModel struct {
 	viewportStart int
 }
 
-func NewSearchModel(idx bleve.Index, tagMode bool) SearchModel {
+func NewSearchModel(idx bleve.Index) SearchModel {
 	return SearchModel{
-		idx:     idx,
-		tagMode: tagMode,
+		idx: idx,
 	}
 }
 
@@ -316,11 +292,9 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 
 			case "d":
-				if !m.tagMode {
-					m.searchUpdated = !m.searchUpdated
+				m.searchUpdated = !m.searchUpdated
 
-					return m, performSearch(m)
-				}
+				return m, performSearch(m)
 			}
 		}
 
@@ -329,11 +303,14 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case tea.KeyTab:
-			if !m.tagMode {
-				m.focusIndex = (m.focusIndex + 1) % 3
+			m.focusIndex = (m.focusIndex + 1) % 4 // Теперь 4 поля
 
-				return m, nil
-			}
+			return m, nil
+
+		case tea.KeyShiftTab:
+			m.focusIndex = (m.focusIndex - 1 + 4) % 4
+
+			return m, nil
 
 		case tea.KeyEnter:
 			if len(m.results) > 0 {
@@ -343,22 +320,50 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case tea.KeyBackspace:
-			changed := false
-			if m.focusIndex == 0 && len(m.query) > 0 {
-				m.query = string([]rune(m.query)[:len([]rune(m.query))-1])
-				changed = true
-			} else if m.focusIndex == 1 && len(m.dateStart) > 0 {
-				m.dateStart = string([]rune(m.dateStart)[:len([]rune(m.dateStart))-1])
-				changed = true
-			} else if m.focusIndex == 2 && len(m.dateEnd) > 0 {
-				m.dateEnd = string([]rune(m.dateEnd)[:len([]rune(m.dateEnd))-1])
-				changed = true
-			}
-			if changed {
-				m.cursor = 0
-				m.viewportStart = 0
+			if m.focusIndex == 0 {
+				if len(m.query) > 0 {
+					m.query = m.query[:len(m.query)-1]
+					m.cursor = 0
+					m.viewportStart = 0
 
-				return m, performSearch(m)
+					return m, performSearch(m)
+				}
+			} else if m.focusIndex == 1 {
+				if len(m.tag) > 0 {
+					m.tag = m.tag[:len(m.tag)-1]
+					m.cursor = 0
+					m.viewportStart = 0
+
+					return m, performSearch(m)
+				}
+			} else if m.focusIndex == 2 || m.focusIndex == 3 {
+				var target *string
+				if m.focusIndex == 2 {
+					target = &m.dateStart
+				} else {
+					target = &m.dateEnd
+				}
+
+				if len(*target) > 0 {
+					if strings.HasSuffix(*target, "-") {
+						if len(*target) >= 2 {
+							*target = (*target)[:len(*target)-2]
+						} else {
+							*target = ""
+						}
+					} else {
+						*target = (*target)[:len(*target)-1]
+
+						if strings.HasSuffix(*target, "-") {
+							*target = (*target)[:len(*target)-1]
+						}
+					}
+
+					m.cursor = 0
+					m.viewportStart = 0
+
+					return m, performSearch(m)
+				}
 			}
 
 		case tea.KeySpace:
@@ -368,28 +373,70 @@ func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewportStart = 0
 
 				return m, performSearch(m)
+			} else if m.focusIndex == 1 {
+				m.tag += " "
+				m.cursor = 0
+				m.viewportStart = 0
+
+				return m, performSearch(m)
 			}
 
 		case tea.KeyRunes:
+			input := string(msg.Runes)
+
 			if m.focusIndex == 0 {
-				m.query += string(msg.Runes)
+				m.query += input
+				m.cursor = 0
+				m.viewportStart = 0
+
+				return m, performSearch(m)
+			} else if m.focusIndex == 1 {
+				m.tag += input
 				m.cursor = 0
 				m.viewportStart = 0
 
 				return m, performSearch(m)
 			} else {
-				char := string(msg.Runes)
-				if strings.ContainsAny(char, "0123456789-") {
-					if m.focusIndex == 1 {
-						m.dateStart += char
-					} else if m.focusIndex == 2 {
-						m.dateEnd += char
+				if strings.ContainsAny(input, "0123456789") {
+					addDateChar := func(val string, char string) string {
+						if len(val) >= 10 {
+							return val
+						}
+
+						if len(val) == 4 || len(val) == 7 {
+							val += "-"
+						}
+
+						val += char
+
+						if len(val) == 4 || len(val) == 7 {
+							val += "-"
+						}
+
+						return val
 					}
 
-					m.cursor = 0
-					m.viewportStart = 0
+					changed := false
+					if m.focusIndex == 2 {
+						newVal := addDateChar(m.dateStart, input)
+						if newVal != m.dateStart {
+							m.dateStart = newVal
+							changed = true
+						}
+					} else if m.focusIndex == 3 {
+						newVal := addDateChar(m.dateEnd, input)
+						if newVal != m.dateEnd {
+							m.dateEnd = newVal
+							changed = true
+						}
+					}
 
-					return m, performSearch(m)
+					if changed {
+						m.cursor = 0
+						m.viewportStart = 0
+
+						return m, performSearch(m)
+					}
 				}
 			}
 		}
@@ -417,52 +464,57 @@ func (m SearchModel) View() string {
 
 	cursor := cursorStyle.Render("_")
 
-	if m.tagMode {
-		b.WriteString(promptStyle.Render("  Tag: "))
-		if m.focusIndex == 0 {
-			b.WriteString(activeInputStyle.Render(m.query) + cursor + "\n\n")
-		} else {
-			b.WriteString(m.query + "\n\n")
-		}
-	} else {
-		targetName := "Created"
-		if m.searchUpdated {
-			targetName = "Updated"
-		}
-
-		b.WriteString(promptStyle.Render("  Search : "))
-		if m.focusIndex == 0 {
-			b.WriteString(activeInputStyle.Render(m.query) + cursor + "\n")
-		} else {
-			b.WriteString(m.query + "\n")
-		}
-
-		renderDate := func(val string, focused bool) string {
-			if val == "" {
-				if focused {
-					firstY := lipgloss.NewStyle().
-						Bold(true).
-						Underline(true).
-						Render(" ")
-
-					return firstY + placeholderStyle.Render("YYY-MM-DD")
-				}
-
-				return placeholderStyle.Render("YYYY-MM-DD")
-			}
-			if focused {
-				return activeInputStyle.Render(val) + cursor
-			}
-
-			return activeInputStyle.Render(val)
-		}
-
-		b.WriteString(promptStyle.Render(fmt.Sprintf("  %-7s: ", targetName)))
-		b.WriteString(renderDate(m.dateStart, m.focusIndex == 1) + "\n")
-
-		b.WriteString(promptStyle.Render("  To     : "))
-		b.WriteString(renderDate(m.dateEnd, m.focusIndex == 2) + "\n\n")
+	targetName := "Created"
+	if m.searchUpdated {
+		targetName = "Updated"
 	}
+
+	renderTextField := func(label, val string, idx int) {
+		b.WriteString(promptStyle.Render(fmt.Sprintf("  %-7s: ", label)))
+
+		if m.focusIndex == idx {
+			b.WriteString(activeInputStyle.Render(val) + cursor)
+		} else {
+			if val == "" {
+				b.WriteString("")
+			} else {
+				b.WriteString(activeInputStyle.Render(val))
+			}
+		}
+
+		b.WriteString("\n")
+	}
+
+	renderDateField := func(label, val string, idx int) {
+		b.WriteString(promptStyle.Render(fmt.Sprintf("  %-7s: ", label)))
+
+		isFocused := m.focusIndex == idx
+
+		if val == "" {
+			if isFocused {
+				c := cursorStyle.Render("_")
+				suffix := placeholderStyle.Render("YYY-MM-DD")
+				b.WriteString(c + suffix)
+			} else {
+				b.WriteString(placeholderStyle.Render("YYYY-MM-DD"))
+			}
+		} else {
+			if isFocused {
+				b.WriteString(activeInputStyle.Render(val) + cursor)
+			} else {
+				b.WriteString(activeInputStyle.Render(val))
+			}
+		}
+
+		b.WriteString("\n")
+	}
+
+	renderTextField("Search", m.query, 0)
+	renderTextField("Tag", m.tag, 1)
+	renderDateField(targetName, m.dateStart, 2)
+	renderDateField("To", m.dateEnd, 3)
+
+	b.WriteString("\n")
 
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("  Error: %v\n", m.err))

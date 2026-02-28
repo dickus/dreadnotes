@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search/query"
 )
 
 // IndexDocument adds or updates a document in the search index.
@@ -18,95 +19,58 @@ func DeleteDocument(idx bleve.Index, path string) error {
 }
 
 // Search queries the index for a given string across titles and contents, using a combination of prefix and fuzzy matching.
-func Search(idx bleve.Index, queryStr string, limit int) (*bleve.SearchResult, error) {
-	queryStr = strings.TrimSpace(queryStr)
-	if queryStr == "" {
-		return &bleve.SearchResult{}, nil
-	}
-
-	titlePrefix := bleve.NewPrefixQuery(queryStr)
-	titlePrefix.SetField("title")
-
-	titleFuzzy := bleve.NewFuzzyQuery(queryStr)
-	titleFuzzy.Fuzziness = 1
-	titleFuzzy.SetField("title")
-
-	contentPrefix := bleve.NewPrefixQuery(queryStr)
-	contentPrefix.SetField("content")
-
-	contentFuzzy := bleve.NewFuzzyQuery(queryStr)
-	contentFuzzy.Fuzziness = 1
-	contentFuzzy.SetField("content")
-
-	combined := bleve.NewDisjunctionQuery(titlePrefix, titleFuzzy, contentPrefix, contentFuzzy)
-
-	req := bleve.NewSearchRequest(combined)
-	req.Size = limit
-	// Requesting these fields to be returned in the search results
-	req.Fields = []string{"title", "content", "path"}
-
-	return idx.Search(req)
-}
-
-// SearchByTag finds documents that contain the specified tag exactly.
-func SearchByTag(idx bleve.Index, tag string, limit int) (*bleve.SearchResult, error) {
-	tag = strings.TrimSpace(tag)
-	if tag == "" {
-		return &bleve.SearchResult{}, nil
-	}
-
-	q := bleve.NewTermQuery(strings.ToLower(tag))
-	q.SetField("tags")
-
-	req := bleve.NewSearchRequestOptions(q, limit, 0, false)
-	req.Fields = []string{"title", "content", "path"}
-
-	return idx.Search(req)
-}
-
-// SearchByDate filters documents by their creation or modification date.
-func SearchByDate(idx bleve.Index, start, end time.Time, field string, limit int) (*bleve.SearchResult, error) {
-	q := bleve.NewDateRangeQuery(start, end)
-	q.SetField(field)
-
-	req := bleve.NewSearchRequestOptions(q, limit, 0, false)
-	req.Fields = []string{"title", "content", "path", "created", "updated"}
-
-	return idx.Search(req)
-}
-
-// SearchWithDateFilter combines a text search with a date range filter.
-// If queryStr is empty, it returns all notes within the specified date range.
-func SearchWithDateFilter(idx bleve.Index, queryStr string, start, end time.Time, dateField string, limit int) (*bleve.SearchResult, error) {
-	dateQuery := bleve.NewDateRangeQuery(start, end)
-	dateQuery.SetField(dateField)
+func Search(idx bleve.Index, queryStr, tagInput string, start, end time.Time, dateField string, limit int) (*bleve.SearchResult, error) {
+	var conjuncts []query.Query
 
 	queryStr = strings.TrimSpace(queryStr)
+	if queryStr != "" {
+		titlePrefix := bleve.NewPrefixQuery(queryStr)
+		titlePrefix.SetField("title")
 
-	if queryStr == "" {
-		req := bleve.NewSearchRequestOptions(dateQuery, limit, 0, false)
-		req.Fields = []string{"title", "content", "path", "created", "updated"}
+		titleFuzzy := bleve.NewFuzzyQuery(queryStr)
+		titleFuzzy.Fuzziness = 1
+		titleFuzzy.SetField("title")
 
-		return idx.Search(req)
+		contentPrefix := bleve.NewPrefixQuery(queryStr)
+		contentPrefix.SetField("content")
+
+		contentFuzzy := bleve.NewFuzzyQuery(queryStr)
+		contentFuzzy.Fuzziness = 1
+		contentFuzzy.SetField("content")
+
+		textQuery := bleve.NewDisjunctionQuery(titlePrefix, titleFuzzy, contentPrefix, contentFuzzy)
+		conjuncts = append(conjuncts, textQuery)
 	}
 
-	titlePrefix := bleve.NewPrefixQuery(queryStr)
-	titlePrefix.SetField("title")
+	tagInput = strings.TrimSpace(tagInput)
+	if tagInput != "" {
+		tags := strings.Split(tagInput, ",")
 
-	titleFuzzy := bleve.NewFuzzyQuery(queryStr)
-	titleFuzzy.Fuzziness = 1
-	titleFuzzy.SetField("title")
+		for _, t := range tags {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
 
-	contentPrefix := bleve.NewPrefixQuery(queryStr)
-	contentPrefix.SetField("content")
+			tq := bleve.NewTermQuery(strings.ToLower(t))
+			tq.SetField("tags")
 
-	contentFuzzy := bleve.NewFuzzyQuery(queryStr)
-	contentFuzzy.Fuzziness = 1
-	contentFuzzy.SetField("content")
+			conjuncts = append(conjuncts, tq)
+		}
+	}
 
-	textQuery := bleve.NewDisjunctionQuery(titlePrefix, titleFuzzy, contentPrefix, contentFuzzy)
+	if !start.IsZero() {
+		dateQuery := bleve.NewDateRangeQuery(start, end)
+		dateQuery.SetField(dateField)
+		conjuncts = append(conjuncts, dateQuery)
+	}
 
-	combined := bleve.NewConjunctionQuery(textQuery, dateQuery)
+	var combined query.Query
+	if len(conjuncts) == 0 {
+		combined = bleve.NewMatchAllQuery()
+	} else {
+		combined = bleve.NewConjunctionQuery(conjuncts...)
+	}
 
 	req := bleve.NewSearchRequestOptions(combined, limit, 0, false)
 	req.Fields = []string{"title", "content", "path", "created", "updated"}

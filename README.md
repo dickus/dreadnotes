@@ -4,6 +4,10 @@
 
 **Dreadnotes** is yet another simple and lightweight CLI tool for managing your notes/knowledge base.
 
+### Who is it for?
+
+For people like me who think that apps like **Obsidian** are holding you back and that terminal is the way to go productive. **neovim** is your only text/code/config editor? You're in the right place (presumably).
+
 ## Installation
 
 ### Go-way
@@ -121,7 +125,6 @@ dreadnotes open [FLAGS]
 **Options:**
 | Flag | Description |
 | :--- | :--- |
-| `-t, --tag` | Filter search results by a specific tag |
 | `-h, --help` | Show help for this command |
 
 **Examples:**

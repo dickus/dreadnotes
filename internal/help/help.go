@@ -24,6 +24,7 @@ func printHelp(data HelpData) {
 	if data.Title != "" {
 		fmt.Printf(" %s:\n", strings.ToUpper(data.Title))
 	}
+
 	if data.Description != "" {
 		fmt.Printf("   dreadnotes %s ― %s\n", data.Title, data.Description)
 		fmt.Println()
@@ -43,6 +44,7 @@ func printHelp(data HelpData) {
 		for _, f := range data.Flags {
 			fmt.Fprintf(w, "   %s\t%s\n", f[0], f[1])
 		}
+
 		w.Flush()
 		fmt.Println()
 	}
@@ -124,11 +126,9 @@ func OpenNoteHelp() {
 		Usage:       "dreadnotes open [FLAGS]",
 		Flags: [][2]string{
 			{"-h, --help", "Show this help"},
-			{"-t, --tag", "Search by tag"},
 		},
 		Examples: []string{
 			"dreadnotes open",
-			"dreadnotes open -t work",
 		},
 	})
 }
