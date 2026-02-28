@@ -22,14 +22,14 @@ var (
 			Bold(true)
 
 	inactiveTitle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("245"))
+			Foreground(lipgloss.Color("6"))
 
 	snippetStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("250")).
+			Foreground(lipgloss.Color("3")).
 			PaddingLeft(4)
 
 	separator = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("238")).
+			Foreground(lipgloss.Color("4")).
 			Render("  ──────────────────────────────")
 
 	promptStyle = lipgloss.NewStyle().
@@ -40,7 +40,7 @@ var (
 				Foreground(lipgloss.Color("15"))
 
 	placeholderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240"))
+				Foreground(lipgloss.Color("245"))
 
 	cursorStyle = lipgloss.NewStyle().
 			Bold(true).
