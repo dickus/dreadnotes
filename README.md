@@ -201,9 +201,36 @@ This function updates the modified time of the note when you save the file. It w
 ### Easy tagging
 
 ```lua
-local function add_tags()
-    vim.ui.input({ prompt = "Tags (separated by comma): " }, function(input)
-        if not input or input == "" then
+local function manage_tags()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local frontmatter_start = nil
+    local frontmatter_end = nil
+    local existing_tags_line_index = nil
+    local current_tags_text = ""
+
+    for i, line in ipairs(lines) do
+        if line:match("^%-%-%-") then
+            if not frontmatter_start then
+                frontmatter_start = i
+            else
+                frontmatter_end = i
+                break
+            end
+        end
+        if frontmatter_start and not frontmatter_end then
+            local tags_content = line:match("^tags:%s*%[(.*)%]")
+            if tags_content then
+                existing_tags_line_index = i
+                current_tags_text = tags_content
+            end
+        end
+    end
+
+    vim.ui.input({ 
+        prompt = "Edit tags: ", 
+        default = current_tags_text 
+    }, function(input)
+        if not input then
             return
         end
 
@@ -215,55 +242,20 @@ local function add_tags()
             end
         end
 
-        local tags_line = "tags: [" .. table.concat(tags, ", ") .. "]"
+        local new_tags_line = "tags: [" .. table.concat(tags, ", ") .. "]"
 
-        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-        local frontmatter_start = nil
-        local frontmatter_end = nil
-        local existing_tags_line = nil
-
-        for i, line in ipairs(lines) do
-            if line:match("^%-%-%-") then
-                if not frontmatter_start then
-                    frontmatter_start = i
-                else
-                    frontmatter_end = i
-                    break
-                end
-            end
-            if frontmatter_start and not frontmatter_end then
-                if line:match("^tags:") then
-                    existing_tags_line = i
-                end
-            end
-        end
-
-        if frontmatter_start and frontmatter_end then
-            if existing_tags_line then
-                local old = lines[existing_tags_line]:match("%[(.-)%]") or ""
-                for tag in old:gmatch("[^,]+") do
-                    tag = tag:match("^%s*(.-)%s*$")
-                    if tag ~= "" then
-                        local exists = false
-                        for _, t in ipairs(tags) do
-                            if t == tag then exists = true; break end
-                        end
-                        if not exists then
-                            table.insert(tags, 1, tag)
-                        end
-                    end
-                end
-                tags_line = "tags: [" .. table.concat(tags, ", ") .. "]"
-                vim.api.nvim_buf_set_lines(0, existing_tags_line - 1, existing_tags_line, false, { tags_line })
-            end
+        if existing_tags_line_index then
+            vim.api.nvim_buf_set_lines(0, existing_tags_line_index - 1, existing_tags_line_index, false, { new_tags_line })
+        elseif frontmatter_start and frontmatter_end then
+            vim.api.nvim_buf_set_lines(0, frontmatter_end - 1, frontmatter_end - 1, false, { new_tags_line })
         else
-            local header = { "---", tags_line, "---", "" }
+            local header = { "---", new_tags_line, "---", "" }
             vim.api.nvim_buf_set_lines(0, 0, 0, false, header)
         end
     end)
 end
 
-vim.keymap.set("n", "<leader>tt", add_tags, { desc = " Add tags to frontmatter" })
+vim.keymap.set("n", "<leader>tt", manage_tags, { desc = " Edit frontmatter tags" })
 ```
 
-This function will let you add tags faster without having to move to tags frontmatter field. Be aware that it works only for tags placed in [].
+This function will let you manage tags faster without having to move to frontmatter tags field. Be aware that it works only for tags placed in [].
