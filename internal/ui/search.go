@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/blevesearch/bleve/v2"
 	tea "github.com/charmbracelet/bubbletea"
@@ -153,10 +154,7 @@ func contentPreview(content string, n int) string {
 
 		lastWasEmpty = false
 
-		runes := []rune(trimmed)
-		if len(runes) > 120 {
-			trimmed = string(runes[:120]) + "…"
-		}
+		trimmed = truncateText(trimmed, 120)
 
 		width := getTermWidth() - 4
 		lines = append(lines, wrapLine(trimmed, width))
@@ -185,6 +183,49 @@ func getTermWidth() int {
 	}
 
 	return w
+}
+
+func truncateText(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+
+	isWordChar := func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r)
+	}
+
+	cutRunes := runes[:maxLen]
+
+	if isWordChar(runes[maxLen-1]) && isWordChar(runes[maxLen]) {
+		lastSpaceIdx := -1
+		for i := len(cutRunes) - 1; i >= 0; i-- {
+			if unicode.IsSpace(cutRunes[i]) || cutRunes[i] == '-' {
+				lastSpaceIdx = i
+
+				break
+			}
+		}
+
+		if lastSpaceIdx != -1 {
+			cutRunes = cutRunes[:lastSpaceIdx]
+		}
+	}
+
+	for len(cutRunes) > 0 {
+		lastRune := cutRunes[len(cutRunes)-1]
+		if !isWordChar(lastRune) {
+			cutRunes = cutRunes[:len(cutRunes)-1]
+		} else {
+			break
+		}
+	}
+
+	if len(cutRunes) == 0 {
+		return string(runes[:maxLen]) + "…"
+	}
+
+	return string(cutRunes) + "…"
 }
 
 func wrapLine(s string, width int) string {
@@ -250,10 +291,7 @@ func findMatchingLine(content string, query string) string {
 		}
 
 		if strings.Contains(strings.ToLower(trimmed), query) {
-			runes := []rune(trimmed)
-			if len(runes) > 120 {
-				trimmed = string(runes[:120]) + "…"
-			}
+			trimmed = truncateText(trimmed, 120)
 
 			width := getTermWidth() - 4
 
