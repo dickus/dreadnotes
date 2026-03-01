@@ -129,11 +129,7 @@ dreadnotes open [FLAGS]
 
 **Examples:**
 ```bash
-# Search notes by their titles and content
 dreadnotes open
-
-# Search notes by a tag specified in search field
-dreadnotes open -t
 ```
 
 ### Rediscover (`random`)
