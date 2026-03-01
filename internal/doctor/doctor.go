@@ -40,77 +40,86 @@ type linkRef struct {
 // It ignores aliases if there are any, so it will only work for the actual links
 var wikilinkRe = regexp.MustCompile(`\[\[([^\]|]+)(?:\|[^\]]+)?\]\]`)
 
-// Run reads directory and checks for problems
-func Run(notesPath string) (Report, error) {
-	report := Report{}
-	resolvedNotesPath := utils.PathParse(notesPath)
-	baseDir := filepath.Dir(resolvedNotesPath)
-	filesPath := filepath.Join(baseDir, "files")
-	existingTargets := make(map[string]struct{})
-	titlesMap := make(map[string][]string)
-	var collectedLinks []linkRef
+type analyzer struct {
+	existingTargets map[string]struct{}
+	titlesMap       map[string][]string
+	collectedLinks  []linkRef
+	emptyNotes      []string
+}
 
+func newAnalyzer(filesPath string) *analyzer {
+	a := &analyzer{
+		existingTargets: make(map[string]struct{}),
+		titlesMap:       make(map[string][]string),
+	}
+
+	a.loadExistingFiles(filesPath)
+
+	return a
+}
+
+func (a *analyzer) loadExistingFiles(filesPath string) {
 	fileEntries, err := os.ReadDir(filesPath)
-	if err == nil {
-		for _, entry := range fileEntries {
-			if !entry.IsDir() {
-				normFileName := strings.ToLower(strings.TrimSpace(entry.Name()))
-				existingTargets[normFileName] = struct{}{}
-			}
-		}
-	}
-
-	noteEntries, err := os.ReadDir(resolvedNotesPath)
 	if err != nil {
-		return report, fmt.Errorf("reading notes dir for linting: %w", err)
+		return
 	}
 
-	for _, entry := range noteEntries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
-			continue
-		}
-
-		fullPath := filepath.Join(resolvedNotesPath, entry.Name())
-		doc, err := frontmatter.ParseFile(fullPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Linter warning: skipping invalid note %s: %v\n", fullPath, err)
-
-			continue
-		}
-
-		lowerName := strings.ToLower(strings.TrimSpace(entry.Name()))
-		baseName := strings.TrimSuffix(lowerName, ".md")
-
-		existingTargets[lowerName] = struct{}{}
-		existingTargets[baseName] = struct{}{}
-
-		if len(bytes.TrimSpace(doc.Content)) == 0 {
-			report.EmptyNotes = append(report.EmptyNotes, fullPath)
-		}
-
-		title := strings.TrimSpace(doc.Meta.Title)
-		if title != "" {
-			titlesMap[title] = append(titlesMap[title], fullPath)
-		}
-
-		matches := wikilinkRe.FindAllSubmatch(doc.Content, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				target := string(match[1])
-				target = strings.TrimSpace(target)
-
-				cleanTarget := filepath.Base(target)
-
-				collectedLinks = append(collectedLinks, linkRef{
-					sourceFile: fullPath,
-					rawTarget:  target,
-					normTarget: strings.ToLower(cleanTarget),
-				})
-			}
+	for _, entry := range fileEntries {
+		if !entry.IsDir() {
+			normFileName := strings.ToLower(strings.TrimSpace(entry.Name()))
+			a.existingTargets[normFileName] = struct{}{}
 		}
 	}
+}
 
-	for title, paths := range titlesMap {
+func (a *analyzer) processNote(fullPath string, entry os.DirEntry) {
+	doc, err := frontmatter.ParseFile(fullPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Linter warning: skipping invalid note %s: %v\n", fullPath, err)
+
+		return
+	}
+
+	lowerName := strings.ToLower(strings.TrimSpace(entry.Name()))
+	baseName := strings.TrimSuffix(lowerName, ".md")
+
+	a.existingTargets[lowerName] = struct{}{}
+	a.existingTargets[baseName] = struct{}{}
+
+	if len(bytes.TrimSpace(doc.Content)) == 0 {
+		a.emptyNotes = append(a.emptyNotes, fullPath)
+	}
+
+	title := strings.TrimSpace(doc.Meta.Title)
+	if title != "" {
+		a.titlesMap[title] = append(a.titlesMap[title], fullPath)
+	}
+
+	a.extractLinks(fullPath, doc.Content)
+}
+
+func (a *analyzer) extractLinks(sourcePath string, content []byte) {
+	matches := wikilinkRe.FindAllSubmatch(content, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			target := strings.TrimSpace(string(match[1]))
+			cleanTarget := filepath.Base(target)
+
+			a.collectedLinks = append(a.collectedLinks, linkRef{
+				sourceFile: sourcePath,
+				rawTarget:  target,
+				normTarget: strings.ToLower(cleanTarget),
+			})
+		}
+	}
+}
+
+func (a *analyzer) generateReport() Report {
+	report := Report{
+		EmptyNotes: a.emptyNotes,
+	}
+
+	for title, paths := range a.titlesMap {
 		if len(paths) > 1 {
 			report.Duplicates = append(report.Duplicates, DuplicateTitle{
 				Title: title,
@@ -119,8 +128,8 @@ func Run(notesPath string) (Report, error) {
 		}
 	}
 
-	for _, link := range collectedLinks {
-		if _, exists := existingTargets[link.normTarget]; !exists {
+	for _, link := range a.collectedLinks {
+		if _, exists := a.existingTargets[link.normTarget]; !exists {
 			report.BrokenLinks = append(report.BrokenLinks, BrokenLink{
 				SourceFile: link.sourceFile,
 				TargetNote: link.rawTarget,
@@ -128,5 +137,30 @@ func Run(notesPath string) (Report, error) {
 		}
 	}
 
-	return report, nil
+	return report
+}
+
+// Run reads directory and checks for problems
+func Run(notesPath string) (Report, error) {
+	resolvedNotesPath := utils.PathParse(notesPath)
+	baseDir := filepath.Dir(resolvedNotesPath)
+	filesPath := filepath.Join(baseDir, "files")
+
+	noteEntries, err := os.ReadDir(resolvedNotesPath)
+	if err != nil {
+		return Report{}, fmt.Errorf("reading notes dir for linting: %w", err)
+	}
+
+	anz := newAnalyzer(filesPath)
+
+	for _, entry := range noteEntries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
+			continue
+		}
+
+		fullPath := filepath.Join(resolvedNotesPath, entry.Name())
+		anz.processNote(fullPath, entry)
+	}
+
+	return anz.generateReport(), nil
 }

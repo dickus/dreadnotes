@@ -346,192 +346,204 @@ func (m SearchModel) updateViewport() SearchModel {
 
 func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case tea.KeyMsg:
-		if msg.Alt && msg.Type == tea.KeyRunes {
-			switch string(msg.Runes) {
-			case "j":
-				if len(m.results) > 0 {
-					m.cursor = (m.cursor + 1) % len(m.results)
-					m = m.updateViewport()
-				}
-
-				return m, nil
-
-			case "k":
-				if len(m.results) > 0 {
-					m.cursor = (m.cursor - 1 + len(m.results)) % len(m.results)
-					m = m.updateViewport()
-				}
-
-				return m, nil
-
-			case "d":
-				m.searchUpdated = !m.searchUpdated
-
-				return m, performSearch(m)
-			}
-		}
-
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
-			return m, tea.Quit
-
-		case tea.KeyTab:
-			m.focusIndex = (m.focusIndex + 1) % 4 // Теперь 4 поля
-
-			return m, nil
-
-		case tea.KeyShiftTab:
-			m.focusIndex = (m.focusIndex - 1 + 4) % 4
-
-			return m, nil
-
-		case tea.KeyEnter:
-			if len(m.results) > 0 {
-				m.chosen = m.results[m.cursor].path
-
-				return m, tea.Quit
-			}
-
-		case tea.KeyBackspace:
-			if m.focusIndex == 0 {
-				if len(m.query) > 0 {
-					m.query = m.query[:len(m.query)-1]
-					m.cursor = 0
-					m.viewportStart = 0
-
-					return m, performSearch(m)
-				}
-			} else if m.focusIndex == 1 {
-				if len(m.tag) > 0 {
-					m.tag = m.tag[:len(m.tag)-1]
-					m.cursor = 0
-					m.viewportStart = 0
-
-					return m, performSearch(m)
-				}
-			} else if m.focusIndex == 2 || m.focusIndex == 3 {
-				var target *string
-				if m.focusIndex == 2 {
-					target = &m.dateStart
-				} else {
-					target = &m.dateEnd
-				}
-
-				if len(*target) > 0 {
-					if strings.HasSuffix(*target, "-") {
-						if len(*target) >= 2 {
-							*target = (*target)[:len(*target)-2]
-						} else {
-							*target = ""
-						}
-					} else {
-						*target = (*target)[:len(*target)-1]
-
-						if strings.HasSuffix(*target, "-") {
-							*target = (*target)[:len(*target)-1]
-						}
-					}
-
-					m.cursor = 0
-					m.viewportStart = 0
-
-					return m, performSearch(m)
-				}
-			}
-
-		case tea.KeySpace:
-			if m.focusIndex == 0 {
-				m.query += " "
-				m.cursor = 0
-				m.viewportStart = 0
-
-				return m, performSearch(m)
-			} else if m.focusIndex == 1 {
-				m.tag += " "
-				m.cursor = 0
-				m.viewportStart = 0
-
-				return m, performSearch(m)
-			}
-
-		case tea.KeyRunes:
-			input := string(msg.Runes)
-
-			if m.focusIndex == 0 {
-				m.query += input
-				m.cursor = 0
-				m.viewportStart = 0
-
-				return m, performSearch(m)
-			} else if m.focusIndex == 1 {
-				m.tag += input
-				m.cursor = 0
-				m.viewportStart = 0
-
-				return m, performSearch(m)
-			} else {
-				if strings.ContainsAny(input, "0123456789") {
-					addDateChar := func(val string, char string) string {
-						if len(val) >= 10 {
-							return val
-						}
-
-						if len(val) == 4 || len(val) == 7 {
-							val += "-"
-						}
-
-						val += char
-
-						if len(val) == 4 || len(val) == 7 {
-							val += "-"
-						}
-
-						return val
-					}
-
-					changed := false
-					if m.focusIndex == 2 {
-						newVal := addDateChar(m.dateStart, input)
-						if newVal != m.dateStart {
-							m.dateStart = newVal
-							changed = true
-						}
-					} else if m.focusIndex == 3 {
-						newVal := addDateChar(m.dateEnd, input)
-						if newVal != m.dateEnd {
-							m.dateEnd = newVal
-							changed = true
-						}
-					}
-
-					if changed {
-						m.cursor = 0
-						m.viewportStart = 0
-
-						return m, performSearch(m)
-					}
-				}
-			}
-		}
+		return m.handleKeyMsg(msg)
 
 	case searchResultMsg:
-		m.err = msg.err
-		if msg.err == nil {
-			m.results = msg.items
-		} else {
-			m.results = nil
-		}
-
-		if m.cursor >= len(m.results) {
-			m.cursor = max(0, len(m.results)-1)
-		}
-
-		m = m.updateViewport()
+		return m.handleSearchResult(msg)
 	}
 
 	return m, nil
+}
+
+func (m SearchModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.Alt && msg.Type == tea.KeyRunes {
+		return m.handleAltKey(string(msg.Runes))
+	}
+
+	switch msg.Type {
+	case tea.KeyCtrlC, tea.KeyEsc:
+		return m, tea.Quit
+
+	case tea.KeyTab:
+		m.focusIndex = (m.focusIndex + 1) % 4
+
+		return m, nil
+
+	case tea.KeyShiftTab:
+		m.focusIndex = (m.focusIndex - 1 + 4) % 4
+
+		return m, nil
+
+	case tea.KeyEnter:
+		if len(m.results) > 0 {
+			m.chosen = m.results[m.cursor].path
+
+			return m, tea.Quit
+		}
+
+		return m, nil
+
+	case tea.KeyBackspace:
+		return m.handleBackspace()
+
+	case tea.KeySpace:
+		return m.handleTextInput(" ")
+
+	case tea.KeyRunes:
+		return m.handleTextInput(string(msg.Runes))
+	}
+
+	return m, nil
+}
+
+func (m SearchModel) handleAltKey(key string) (tea.Model, tea.Cmd) {
+	switch key {
+	case "j":
+		if len(m.results) > 0 {
+			m.cursor = (m.cursor + 1) % len(m.results)
+
+			return m.updateViewport(), nil
+		}
+
+	case "k":
+		if len(m.results) > 0 {
+			m.cursor = (m.cursor - 1 + len(m.results)) % len(m.results)
+
+			return m.updateViewport(), nil
+		}
+
+	case "d":
+		m.searchUpdated = !m.searchUpdated
+
+		return m, performSearch(m)
+	}
+
+	return m, nil
+}
+
+func (m SearchModel) resetCursorAndSearch() (tea.Model, tea.Cmd) {
+	m.cursor = 0
+	m.viewportStart = 0
+
+	return m, performSearch(m)
+}
+
+func (m SearchModel) handleTextInput(input string) (tea.Model, tea.Cmd) {
+	switch m.focusIndex {
+	case 0:
+		m.query += input
+
+		return m.resetCursorAndSearch()
+
+	case 1:
+		m.tag += input
+
+		return m.resetCursorAndSearch()
+
+	case 2:
+		return m.handleDateInput(&m.dateStart, input)
+
+	case 3:
+		return m.handleDateInput(&m.dateEnd, input)
+
+	}
+
+	return m, nil
+}
+
+func (m SearchModel) handleDateInput(target *string, input string) (tea.Model, tea.Cmd) {
+	if !strings.ContainsAny(input, "0123456789") {
+		return m, nil
+	}
+
+	val := *target
+	if len(val) >= 10 {
+		return m, nil
+	}
+
+	if len(val) == 4 || len(val) == 7 {
+		val += "-"
+	}
+
+	val += input
+
+	if len(val) == 4 || len(val) == 7 {
+		val += "-"
+	}
+
+	if val != *target {
+		*target = val
+		return m.resetCursorAndSearch()
+	}
+
+	return m, nil
+}
+
+func (m SearchModel) handleBackspace() (tea.Model, tea.Cmd) {
+	switch m.focusIndex {
+	case 0:
+		if len(m.query) > 0 {
+			m.query = m.query[:len(m.query)-1]
+
+			return m.resetCursorAndSearch()
+		}
+
+	case 1:
+		if len(m.tag) > 0 {
+			m.tag = m.tag[:len(m.tag)-1]
+
+			return m.resetCursorAndSearch()
+		}
+
+	case 2:
+		return m.handleDateBackspace(&m.dateStart)
+
+	case 3:
+		return m.handleDateBackspace(&m.dateEnd)
+
+	}
+
+	return m, nil
+}
+
+func (m SearchModel) handleDateBackspace(target *string) (tea.Model, tea.Cmd) {
+	val := *target
+	if len(val) == 0 {
+		return m, nil
+	}
+
+	if strings.HasSuffix(val, "-") {
+		if len(val) >= 2 {
+			val = val[:len(val)-2]
+		} else {
+			val = ""
+		}
+	} else {
+		val = val[:len(val)-1]
+		if strings.HasSuffix(val, "-") {
+			val = val[:len(val)-1]
+		}
+	}
+
+	*target = val
+
+	return m.resetCursorAndSearch()
+}
+
+func (m SearchModel) handleSearchResult(msg searchResultMsg) (tea.Model, tea.Cmd) {
+	m.err = msg.err
+	if msg.err == nil {
+		m.results = msg.items
+	} else {
+		m.results = nil
+	}
+
+	if m.cursor >= len(m.results) && len(m.results) > 0 {
+		m.cursor = len(m.results) - 1
+	}
+
+	return m.updateViewport(), nil
 }
 
 func (m SearchModel) View() string {
