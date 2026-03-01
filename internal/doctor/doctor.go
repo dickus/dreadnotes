@@ -42,8 +42,8 @@ var (
 	wikilinkRe = regexp.MustCompile(`\[\[([^\]|]+)(?:\|[^\]]+)?\]\]`)
 
 	// codeBlockRe ignores [[]] in multiline codeblocks
-	codeBlockRe  = regexp.MustCompile("(?s)```.*?```")
-	
+	codeBlockRe = regexp.MustCompile("(?s)```.*?```")
+
 	// inlineCodeRe ignores [[]] in inline code
 	inlineCodeRe = regexp.MustCompile("`[^`]*`")
 )
@@ -115,7 +115,7 @@ func (a *analyzer) extractLinks(sourcePath string, content []byte) {
 	for _, match := range matches {
 		if len(match) > 1 {
 			target := strings.TrimSpace(string(match[1]))
-			
+
 			if target == "" {
 				continue
 			}
