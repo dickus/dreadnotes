@@ -37,8 +37,16 @@ type linkRef struct {
 }
 
 // Regex for [[]]
-// It ignores aliases if there are any, so it will only work for the actual links
-var wikilinkRe = regexp.MustCompile(`\[\[([^\]|]+)(?:\|[^\]]+)?\]\]`)
+var (
+	// wikilinkRe ignores aliases if there are any, so it will only work for the actual links
+	wikilinkRe = regexp.MustCompile(`\[\[([^\]|]+)(?:\|[^\]]+)?\]\]`)
+
+	// codeBlockRe ignores [[]] in multiline codeblocks
+	codeBlockRe  = regexp.MustCompile("(?s)```.*?```")
+	
+	// inlineCodeRe ignores [[]] in inline code
+	inlineCodeRe = regexp.MustCompile("`[^`]*`")
+)
 
 type analyzer struct {
 	existingTargets map[string]struct{}
@@ -99,10 +107,19 @@ func (a *analyzer) processNote(fullPath string, entry os.DirEntry) {
 }
 
 func (a *analyzer) extractLinks(sourcePath string, content []byte) {
-	matches := wikilinkRe.FindAllSubmatch(content, -1)
+	cleanContent := codeBlockRe.ReplaceAll(content, nil)
+
+	cleanContent = inlineCodeRe.ReplaceAll(cleanContent, nil)
+
+	matches := wikilinkRe.FindAllSubmatch(cleanContent, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
 			target := strings.TrimSpace(string(match[1]))
+			
+			if target == "" {
+				continue
+			}
+
 			cleanTarget := filepath.Base(target)
 
 			a.collectedLinks = append(a.collectedLinks, linkRef{
